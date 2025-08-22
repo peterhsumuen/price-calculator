@@ -54,7 +54,7 @@ export default function App() {
     'Bedroom': (sf) => {
       const parsedSF = parseFloat(sf);
       if (isNaN(parsedSF)) return 0;
-      return parsedSF <= 700 ? 300 * parsedSF : 0;
+      return parsedSF > 700 ? 0 : 300 * parsedSF;
     },
     'Landscape': (sf) => {
       // The new rule: Landscape is not working yet, so the cost is 0.
@@ -91,18 +91,19 @@ export default function App() {
     setItems(items.filter(item => item.id !== id));
   };
 
-  // Options for the dropdown menu
+  // Updated options array. The 'value' must match a key in PRICING_RULES.
+  // The 'label' is the text the user sees in the dropdown.
   const options = [
-    'Full gut',
-    'Additional building / new construction',
-    'Structural Wall removal(Enter Full SF)',
-    '2nd Structural Wall removal(Enter Full SF)',
-    'Kitchen',
-    'Bathroom',
-    'Living room(Enter Full SF)',
-    'Garage',
-    'Bedroom(Enter Full SF)',
-    'Landscape(Coming Soon)'
+    { value: 'Full gut', label: 'Full gut' },
+    { value: 'Additional building/ new construction', label: 'Additional building / new construction' },
+    { value: 'Structural Wall removal', label: 'Structural Wall removal (Enter Full SF)' },
+    { value: '2nd Structural Wall removal', label: '2nd Structural Wall removal (Enter Full SF)' },
+    { value: 'Kitchen', label: 'Kitchen' },
+    { value: 'Bathroom', label: 'Bathroom' },
+    { value: 'Living room', label: 'Living room (Enter Full SF)' },
+    { value: 'Garage', label: 'Garage' },
+    { value: 'Bedroom', label: 'Bedroom (Enter Full SF)' },
+    { value: 'Landscape', label: 'Landscape (Coming Soon)' }
   ];
 
   return (
@@ -116,7 +117,7 @@ export default function App() {
             <div key={item.id} className="item-row">
               {/* Dropdown */}
               <div className="input-group">
-                <label htmlFor={`type-${item.id}`} className="sr-only"></label>
+                <label htmlFor={`type-${item.id}`} className="sr-only">Type</label>
                 <select
                   id={`type-${item.id}`}
                   value={item.type}
@@ -124,7 +125,9 @@ export default function App() {
                   className="input-field"
                 >
                   {options.map(option => (
-                    <option key={option} value={option}>{option}</option>
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -161,13 +164,13 @@ export default function App() {
             onClick={handleAddItem}
             className="add-btn"
           >
-            + Add Items
+            + Add Item
           </button>
         </div>
 
         {/* Total Price Display */}
         <div className="total-display">
-          <span className="total-label">Total Price：</span>
+          <span className="total-label">Total Price:</span>
           <span className="total-price">
             ${totalPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </span>
