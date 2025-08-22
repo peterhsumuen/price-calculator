@@ -26,14 +26,12 @@ export default function App() {
     'Structural Wall removal': (sf) => {
       const parsedSF = parseFloat(sf);
       if (isNaN(parsedSF)) return 0;
-      // The new rule: if SF > 700, cost is 0, otherwise it's 45000.
-      return parsedSF > 700 ? 0 : 45000;
+      return parsedSF >= 700 ? 0 : 45000;
     },
     '2nd Structural Wall removal': (sf) => {
       const parsedSF = parseFloat(sf);
       if (isNaN(parsedSF)) return 0;
-      // The new rule: if SF > 700, cost is 0, otherwise it's 6000.
-      return parsedSF > 700 ? 0 : 6000;
+      return parsedSF >= 700 ? 0 : 6000;
     },
     'Kitchen': (sf) => {
       const parsedSF = parseFloat(sf);
@@ -42,14 +40,12 @@ export default function App() {
     'Bathroom': (sf) => {
       const parsedSF = parseFloat(sf);
       if (isNaN(parsedSF)) return 0;
-      // Use a tiered system based on SF for "lower" and "upper" ranges
-      return parsedSF < 50 ? 1000 * parsedSF : 800 * parsedSF;
+      return (500 * parsedSF) + 20000;
     },
     'Living room': (sf) => {
       const parsedSF = parseFloat(sf);
       if (isNaN(parsedSF)) return 0;
-      // The new rule: if SF > 700, cost is 0, otherwise it's 300 * SF.
-      return parsedSF > 700 ? 0 : 300 * parsedSF;
+      return parsedSF >= 700 ? 0 : 300 * parsedSF;
     },
     'Garage': (sf) => {
       const parsedSF = parseFloat(sf);
@@ -58,8 +54,7 @@ export default function App() {
     'Bedroom': (sf) => {
       const parsedSF = parseFloat(sf);
       if (isNaN(parsedSF)) return 0;
-      // The new rule: if SF > 700, cost is 0, otherwise it's 300 * SF.
-      return parsedSF > 700 ? 0 : 300 * parsedSF;
+      return parsedSF >= 700 ? 0 : 300 * parsedSF;
     },
     'Landscape': (sf) => {
       // The new rule: Landscape is not working yet, so the cost is 0.
@@ -99,15 +94,15 @@ export default function App() {
   // Options for the dropdown menu
   const options = [
     'Full gut',
-    'Additional building/ new construction',
-    'Structural Wall removal',
-    '2nd Structural Wall removal',
+    'Additional building / new construction',
+    'Structural Wall removal(Enter Full SF)',
+    '2nd Structural Wall removal(Enter Full SF)',
     'Kitchen',
     'Bathroom',
-    'Living room',
+    'Living room(Enter Full SF)',
     'Garage',
-    'Bedroom',
-    'Landscape'
+    'Bedroom(Enter Full SF)',
+    'Landscape(Coming Soon)'
   ];
 
   return (
@@ -121,7 +116,7 @@ export default function App() {
             <div key={item.id} className="item-row">
               {/* Dropdown */}
               <div className="input-group">
-                <label htmlFor={`type-${item.id}`} className="sr-only">類型</label>
+                <label htmlFor={`type-${item.id}`} className="sr-only"></label>
                 <select
                   id={`type-${item.id}`}
                   value={item.type}
@@ -136,7 +131,7 @@ export default function App() {
 
               {/* Square Footage Input */}
               <div className="input-group">
-                <label htmlFor={`sf-${item.id}`} className="sr-only">平方英尺</label>
+                <label htmlFor={`sf-${item.id}`} className="sr-only">Square Feet</label>
                 <input
                   id={`sf-${item.id}`}
                   type="number"
