@@ -26,7 +26,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 
-// Pricing calculator component - no changes here
+// Pricing calculator component
 function PriceCalculator({ user, onLogout }) {
   // State to hold the list of items selected by the user
   const [items, setItems] = useState([
@@ -34,6 +34,11 @@ function PriceCalculator({ user, onLogout }) {
   ]);
   // State to hold the final calculated price
   const [totalPrice, setTotalPrice] = useState(0);
+
+  // New state to hold project details
+  const [projectName, setProjectName] = useState('');
+  const [address, setAddress] = useState('');
+  const [clientName, setClientName] = useState('');
 
   // Define a map of pricing rules based on the provided image
   const PRICING_RULES = {
@@ -136,6 +141,37 @@ function PriceCalculator({ user, onLogout }) {
           <button onClick={onLogout} className="logout-btn">Logout</button>
         </header>
         <h1 className="title">Pricing Calculator</h1>
+        
+        {/* New input fields for project details */}
+        <div className="project-details">
+          <div className="input-group">
+            <input
+              type="text"
+              placeholder="Project Name"
+              value={projectName}
+              onChange={(e) => setProjectName(e.target.value)}
+              className="input-field"
+            />
+          </div>
+          <div className="input-group">
+            <input
+              type="text"
+              placeholder="Address"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              className="input-field"
+            />
+          </div>
+          <div className="input-group">
+            <input
+              type="text"
+              placeholder="Client Name"
+              value={clientName}
+              onChange={(e) => setClientName(e.target.value)}
+              className="input-field"
+            />
+          </div>
+        </div>
         
         {/* Container for the list of items */}
         <div className="items-container">
@@ -255,7 +291,7 @@ function AuthPage({ onLoginSuccess }) {
     }
   };
 
-   return (
+  return (
     <div className="app-container">
       <div className="calculator-card auth-card">
         <h1 className="title">{isSignUp ? 'Create an Account' : 'Login'}</h1>
@@ -322,6 +358,39 @@ function AuthPage({ onLoginSuccess }) {
 }
 
 // Main App component to handle authentication state
+export default function App() {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const handleLogout = async () => {
+    await signOut(auth);
+  };
+
+  if (loading) {
+    return (
+      <div className="loading-container">
+        <div className="spinner"></div>
+      </div>
+    );
+  }
+
+  return (
+    user ? (
+      <PriceCalculator user={user} onLogout={handleLogout} />
+    ) : (
+      <AuthPage />
+    )
+  );
+}
+
 export default function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
