@@ -264,3 +264,11 @@ body {
     transform: rotate(360deg);
   }
 }
+
+/* Icon specific styling */
+.button-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  margin-right: 0.5rem;
+  color: currentColor;
+}
