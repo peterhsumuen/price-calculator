@@ -24,16 +24,16 @@ export default function App() {
       return isNaN(parsedSF) ? 0 : 600 * parsedSF;
     },
     'Structural Wall removal': (sf) => {
-      const isFullGutSelected = items.some(item => item.type === 'Full gut');
       const parsedSF = parseFloat(sf);
-      // The spreadsheet says "follow Full gut" for >700 SF, implying cost is included.
-      // We'll apply the fixed price only if "Full gut" is NOT selected.
-      if (isFullGutSelected) return 0;
-      return 45000;
+      if (isNaN(parsedSF)) return 0;
+      // The new rule: if SF > 700, cost is 0, otherwise it's 45000.
+      return parsedSF > 700 ? 0 : 45000;
     },
     '2nd Structural Wall removal': (sf) => {
-      // The spreadsheet shows a fixed price for this
-      return 6000;
+      const parsedSF = parseFloat(sf);
+      if (isNaN(parsedSF)) return 0;
+      // The new rule: if SF > 700, cost is 0, otherwise it's 6000.
+      return parsedSF > 700 ? 0 : 6000;
     },
     'Kitchen': (sf) => {
       const parsedSF = parseFloat(sf);
@@ -48,8 +48,8 @@ export default function App() {
     'Living room': (sf) => {
       const parsedSF = parseFloat(sf);
       if (isNaN(parsedSF)) return 0;
-      // Two tiers based on SF
-      return parsedSF < 700 ? 300 * parsedSF : 250 * parsedSF;
+      // The new rule: if SF > 700, cost is 0, otherwise it's 300 * SF.
+      return parsedSF > 700 ? 0 : 300 * parsedSF;
     },
     'Garage': (sf) => {
       const parsedSF = parseFloat(sf);
@@ -58,12 +58,12 @@ export default function App() {
     'Bedroom': (sf) => {
       const parsedSF = parseFloat(sf);
       if (isNaN(parsedSF)) return 0;
-      // Use a tiered system based on SF for "lower" and "upper" ranges
-      return parsedSF < 200 ? 300 * parsedSF : 250 * parsedSF;
+      // The new rule: if SF > 700, cost is 0, otherwise it's 300 * SF.
+      return parsedSF > 700 ? 0 : 300 * parsedSF;
     },
     'Landscape': (sf) => {
-      // The spreadsheet showed N/A and a value error. We'll use a fixed price.
-      return 10000;
+      // The new rule: Landscape is not working yet, so the cost is 0.
+      return 0;
     },
   };
 
@@ -140,7 +140,7 @@ export default function App() {
                 <input
                   id={`sf-${item.id}`}
                   type="number"
-                  placeholder="平方英尺"
+                  placeholder="Square Foots"
                   value={item.sf}
                   onChange={(e) => handleChange(item.id, 'sf', e.target.value)}
                   className="input-field"
@@ -153,7 +153,7 @@ export default function App() {
                   onClick={() => handleRemoveItem(item.id)}
                   className="remove-btn"
                 >
-                  移除
+                  Remove
                 </button>
               )}
             </div>
@@ -166,13 +166,13 @@ export default function App() {
             onClick={handleAddItem}
             className="add-btn"
           >
-            + 新增項目
+            + Add Items
           </button>
         </div>
 
         {/* Total Price Display */}
         <div className="total-display">
-          <span className="total-label">總價：</span>
+          <span className="total-label">Total Price：</span>
           <span className="total-price">
             ${totalPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </span>
