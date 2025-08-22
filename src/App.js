@@ -63,7 +63,8 @@ function PriceCalculator({ user, onLogout }) {
     },
     'Kitchen': (sf) => {
       const parsedSF = parseFloat(sf);
-      return isNaN(parsedSF) ? 0 : 400 * parsedSF;
+      if (isNaN(parsedSF)) return 0;
+      return (500 * parsedSF) + 20000;
     },
     'Bathroom': (sf) => {
       const parsedSF = parseFloat(sf);
@@ -243,7 +244,7 @@ function PriceCalculator({ user, onLogout }) {
 }
 
 // Authentication component
-function AuthPage({ onLoginSuccess }) {
+function AuthPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -358,39 +359,6 @@ function AuthPage({ onLoginSuccess }) {
 }
 
 // Main App component to handle authentication state
-export default function App() {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-      setLoading(false);
-    });
-    return () => unsubscribe();
-  }, []);
-
-  const handleLogout = async () => {
-    await signOut(auth);
-  };
-
-  if (loading) {
-    return (
-      <div className="loading-container">
-        <div className="spinner"></div>
-      </div>
-    );
-  }
-
-  return (
-    user ? (
-      <PriceCalculator user={user} onLogout={handleLogout} />
-    ) : (
-      <AuthPage />
-    )
-  );
-}
-
 export default function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
