@@ -350,7 +350,7 @@ body {
 
 .records-row {
   display: grid;
-  grid-template-columns: repeat(4, 1fr) auto;
+  grid-template-columns: 2fr 2fr 2fr 1fr 2rem;
   align-items: center;
   padding: 1rem;
   border-bottom: 1px solid #e5e7eb;
@@ -386,6 +386,7 @@ body {
 .total-price {
   color: #2563eb;
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .expand-btn {
