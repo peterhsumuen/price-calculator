@@ -2,7 +2,7 @@
   "name": "price-calculator",
   "version": "0.1.0",
   "private": true,
-  "homepage": "https://<your-github-username>.github.io/<your-repo-name>",
+  "homepage": "https://peterhsumuen.github.io/price-calculator",
   "dependencies": {
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
@@ -36,6 +36,6 @@
     ]
   },
   "devDependencies": {
-    "gh-pages": "^6.1.1"
+    "gh-pages": "^6.3.0"
   }
 }
