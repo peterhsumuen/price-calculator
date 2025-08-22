@@ -350,7 +350,7 @@ body {
 
 .records-row {
   display: grid;
-  grid-template-columns: 2fr 2fr 2fr 1fr 2rem;
+  grid-template-columns: minmax(100px, 2fr) minmax(100px, 2fr) minmax(100px, 2fr) minmax(120px, 1fr) 2rem;
   align-items: center;
   padding: 1rem;
   border-bottom: 1px solid #e5e7eb;
