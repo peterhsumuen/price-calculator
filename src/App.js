@@ -1,9 +1,33 @@
 import React, { useState, useEffect } from 'react';
-import { v4 as uuidv4 } from 'uuid'; // A library to generate unique IDs
-import './App.css'; // Import the custom CSS file
+import { v4 as uuidv4 } from 'uuid';
+import { initializeApp } from 'firebase/app';
+import {
+  getAuth,
+  onAuthStateChanged,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  sendPasswordResetEmail,
+  signOut
+} from 'firebase/auth';
+import './App.css';
 
-// Main App component
-export default function App() {
+// Firebase configuration
+// You MUST replace this with your own Firebase project configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyDw0ZTTDzVfB-IiLBlK8LlZlLS2sNdDF0U",
+  authDomain: "remodelingbid.firebaseapp.com",
+  projectId: "remodelingbid",
+  storageBucket: "remodelingbid.firebasestorage.app",
+  messagingSenderId: "232389086436",
+  appId: "1:232389086436:web:50f47b5a2f9176eea570f1"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+
+// Pricing calculator component - no changes here
+function PriceCalculator({ user, onLogout }) {
   // State to hold the list of items selected by the user
   const [items, setItems] = useState([
     { id: uuidv4(), type: 'Full gut', sf: '' } // Initial item
@@ -16,7 +40,6 @@ export default function App() {
     'Full gut': (sf) => {
       const parsedSF = parseFloat(sf);
       if (isNaN(parsedSF)) return 0;
-      // The spreadsheet shows two tiers based on SF
       return parsedSF >= 700 ? 250 * parsedSF : 300 * parsedSF;
     },
     'Additional building/ new construction': (sf) => {
@@ -57,7 +80,6 @@ export default function App() {
       return parsedSF > 700 ? 0 : 300 * parsedSF;
     },
     'Landscape': (sf) => {
-      // The new rule: Landscape is not working yet, so the cost is 0.
       return 0;
     },
   };
@@ -109,15 +131,19 @@ export default function App() {
   return (
     <div className="app-container">
       <div className="calculator-card">
+        <header className="header">
+          <span className="user-info">Welcome, {user.email}!</span>
+          <button onClick={onLogout} className="logout-btn">Logout</button>
+        </header>
         <h1 className="title">Pricing Calculator</h1>
         
         {/* Container for the list of items */}
         <div className="items-container">
-          {items.map((item, index) => (
+          {items.map((item) => (
             <div key={item.id} className="item-row">
               {/* Dropdown */}
               <div className="input-group">
-                <label htmlFor={`type-${item.id}`} className="sr-only">Type</label>
+                <label htmlFor={`type-${item.id}`} className="sr-only">類型</label>
                 <select
                   id={`type-${item.id}`}
                   value={item.type}
@@ -134,7 +160,7 @@ export default function App() {
 
               {/* Square Footage Input */}
               <div className="input-group">
-                <label htmlFor={`sf-${item.id}`} className="sr-only">Square Feet</label>
+                <label htmlFor={`sf-${item.id}`} className="sr-only">平方英尺</label>
                 <input
                   id={`sf-${item.id}`}
                   type="number"
@@ -151,7 +177,7 @@ export default function App() {
                   onClick={() => handleRemoveItem(item.id)}
                   className="remove-btn"
                 >
-                  Remove
+                  移除
                 </button>
               )}
             </div>
@@ -164,18 +190,156 @@ export default function App() {
             onClick={handleAddItem}
             className="add-btn"
           >
-            + Add Item
+            + 新增項目
           </button>
         </div>
 
         {/* Total Price Display */}
         <div className="total-display">
-          <span className="total-label">Total Price:</span>
+          <span className="total-label">總價：</span>
           <span className="total-price">
             ${totalPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </span>
         </div>
       </div>
     </div>
+  );
+}
+
+// Authentication component
+function AuthPage({ onLoginSuccess }) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleAuthAction = async (e) => {
+    e.preventDefault();
+    setError('');
+
+    if (isSignUp) {
+      if (password !== confirmPassword) {
+        setError("Passwords do not match.");
+        return;
+      }
+      if (!email.endsWith('@baroncnr.com')) {
+        setError("Sign-up is restricted to @baroncnr.com emails.");
+        return;
+      }
+      try {
+        await createUserWithEmailAndPassword(auth, email, password);
+      } catch (err) {
+        setError(err.message);
+      }
+    } else {
+      try {
+        await signInWithEmailAndPassword(auth, email, password);
+      } catch (err) {
+        setError(err.message);
+      }
+    }
+  };
+
+  const handlePasswordReset = async () => {
+    setError('');
+    if (!email) {
+      setError("Please enter your email to reset the password.");
+      return;
+    }
+    try {
+      await sendPasswordResetEmail(auth, email);
+      setError("Password reset email sent. Please check your inbox.");
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  return (
+    <div className="app-container">
+      <div className="calculator-card auth-card">
+        <h1 className="title">{isSignUp ? 'Create an Account' : 'Login'}</h1>
+        <form onSubmit={handleAuthAction} className="auth-form">
+          <div className="input-group">
+            <input
+              type="email"
+              placeholder="Email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              className="input-field"
+            />
+          </div>
+          <div className="input-group">
+            <input
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              className="input-field"
+            />
+          </div>
+          {isSignUp && (
+            <div className="input-group">
+              <input
+                type="password"
+                placeholder="Confirm Password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                className="input-field"
+              />
+            </div>
+          )}
+          {error && <p className="error-message">{error}</p>}
+          <button type="submit" className="auth-btn">{isSignUp ? 'Sign Up' : 'Login'}</button>
+        </form>
+        <div className="auth-links">
+          <button className="link-btn" onClick={() => setIsSignUp(!isSignUp)}>
+            {isSignUp ? 'Already have an account? Login' : 'Need an account? Sign Up'}
+          </button>
+          {!isSignUp && (
+            <button className="link-btn" onClick={handlePasswordReset}>
+              Forgot Password?
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Main App component to handle authentication state
+export default function App() {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const handleLogout = async () => {
+    await signOut(auth);
+  };
+
+  if (loading) {
+    return (
+      <div className="loading-container">
+        <div className="spinner"></div>
+      </div>
+    );
+  }
+
+  return (
+    user ? (
+      <PriceCalculator user={user} onLogout={handleLogout} />
+    ) : (
+      <AuthPage />
+    )
   );
 }
