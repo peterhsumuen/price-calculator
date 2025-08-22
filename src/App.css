@@ -280,3 +280,140 @@ body {
   margin-right: 0.5rem;
   color: currentColor;
 }
+
+/* New styling for navigation buttons */
+.nav-buttons {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 2rem;
+  gap: 1rem;
+}
+
+.nav-btn, .nav-btn-active {
+  padding: 0.5rem 1.5rem;
+  font-weight: 600;
+  border-radius: 9999px; /* Pill shape */
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+.nav-btn {
+  background-color: #e5e7eb;
+  color: #4b5563;
+}
+
+.nav-btn:hover {
+  background-color: #d1d5db;
+}
+
+.nav-btn-active {
+  background-color: #10b981;
+  color: #ffffff;
+}
+
+/* New styling for save button */
+.save-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 1.5rem;
+  gap: 0.5rem;
+}
+
+.save-btn {
+  padding: 0.75rem 1.5rem;
+  background-color: #22c55e;
+  color: #ffffff;
+  font-weight: 600;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  transition: background-color 0.2s ease-in-out;
+  border: none;
+  cursor: pointer;
+}
+
+.save-btn:hover {
+  background-color: #15803d;
+}
+
+.save-status {
+  font-size: 0.875rem;
+  color: #22c55e;
+}
+
+/* New styling for records table */
+.records-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.records-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr) auto;
+  align-items: center;
+  padding: 1rem;
+  border-bottom: 1px solid #e5e7eb;
+  cursor: pointer;
+}
+
+.records-row:hover {
+  background-color: #f9fafb;
+}
+
+.records-header {
+  font-weight: 700;
+  background-color: #e5e7eb;
+  border-radius: 0.5rem 0.5rem 0 0;
+  cursor: default;
+}
+
+.records-header:hover {
+  background-color: #e5e7eb;
+}
+
+.header-col {
+  padding: 0.5rem;
+}
+
+.data-col {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0.5rem;
+}
+
+.total-price {
+  color: #2563eb;
+  font-weight: 600;
+}
+
+.expand-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  color: #6b7280;
+  padding: 0;
+  transition: transform 0.2s ease-in-out;
+}
+
+.item-details {
+  background-color: #f3f4f6;
+  padding: 1rem;
+  border-top: 1px solid #d1d5db;
+  border-bottom: 1px solid #d1d5db;
+}
+
+.details-row {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  padding: 0.5rem 0;
+}
+
+.details-header {
+  font-weight: 600;
+  border-bottom: 1px solid #d1d5db;
+  margin-bottom: 0.5rem;
+}

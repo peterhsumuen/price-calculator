@@ -9,6 +9,7 @@ import {
   sendPasswordResetEmail,
   signOut
 } from 'firebase/auth';
+import { getFirestore, collection, addDoc, onSnapshot, query } from 'firebase/firestore';
 import './App.css';
 
 // Firebase configuration
@@ -25,9 +26,10 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
+const db = getFirestore(app);
 
 // Pricing calculator component
-function PriceCalculator({ user, onLogout }) {
+function PriceCalculator({ user, onLogout, onPageChange }) {
   // State to hold the list of items selected by the user
   const [items, setItems] = useState([
     { id: uuidv4(), type: 'Full gut', sf: '' } // Initial item
@@ -39,6 +41,7 @@ function PriceCalculator({ user, onLogout }) {
   const [projectName, setProjectName] = useState('');
   const [address, setAddress] = useState('');
   const [clientName, setClientName] = useState('');
+  const [saveStatus, setSaveStatus] = useState('');
 
   // Define a map of pricing rules based on the provided image
   const PRICING_RULES = {
@@ -119,6 +122,34 @@ function PriceCalculator({ user, onLogout }) {
     setItems(items.filter(item => item.id !== id));
   };
 
+  // Function to save the project to Firestore
+  const saveProject = async () => {
+    if (!projectName || !address || !clientName) {
+      setSaveStatus("Please fill out all project details before saving.");
+      return;
+    }
+    setSaveStatus("Saving...");
+    try {
+      await addDoc(collection(db, `projects`), {
+        userId: user.uid,
+        userName: user.email,
+        projectName,
+        address,
+        clientName,
+        finalPrice: totalPrice,
+        items: items.map(item => ({ type: item.type, sf: item.sf }))
+      });
+      setSaveStatus("Project saved successfully!");
+      setProjectName('');
+      setAddress('');
+      setClientName('');
+      setItems([{ id: uuidv4(), type: 'Full gut', sf: '' }]);
+      setTotalPrice(0);
+    } catch (e) {
+      setSaveStatus("Error saving project: " + e.message);
+    }
+  };
+
   // Updated options array. The 'value' must match a key in PRICING_RULES.
   // The 'label' is the text the user sees in the dropdown.
   const options = [
@@ -141,6 +172,13 @@ function PriceCalculator({ user, onLogout }) {
           <span className="user-info">Welcome, {user.email}!</span>
           <button onClick={onLogout} className="logout-btn">Logout</button>
         </header>
+        
+        {/* Navigation buttons */}
+        <div className="nav-buttons">
+          <button className="nav-btn-active">Calculator</button>
+          <button onClick={() => onPageChange('records')} className="nav-btn">Records</button>
+        </div>
+        
         <h1 className="title">Pricing Calculator</h1>
         
         {/* New input fields for project details */}
@@ -237,6 +275,90 @@ function PriceCalculator({ user, onLogout }) {
           <span className="total-price">
             ${totalPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </span>
+        </div>
+        <div className="save-container">
+          {saveStatus && <p className="save-status">{saveStatus}</p>}
+          <button onClick={saveProject} className="save-btn">
+            Save Project
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Records page component
+function RecordsPage({ user, onLogout, onPageChange }) {
+  const [projects, setProjects] = useState([]);
+  const [expandedRow, setExpandedRow] = useState(null);
+
+  useEffect(() => {
+    // Check if user is authenticated before fetching data
+    if (!user) return;
+    
+    const q = query(collection(db, 'projects'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const projectList = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setProjects(projectList);
+    });
+    return () => unsubscribe();
+  }, [user]);
+
+  return (
+    <div className="app-container">
+      <div className="calculator-card">
+        <header className="header">
+          <span className="user-info">Welcome, {user.email}!</span>
+          <button onClick={onLogout} className="logout-btn">Logout</button>
+        </header>
+        
+        {/* Navigation buttons */}
+        <div className="nav-buttons">
+          <button onClick={() => onPageChange('calculator')} className="nav-btn">Calculator</button>
+          <button className="nav-btn-active">Records</button>
+        </div>
+        
+        <h1 className="title">Project Records</h1>
+        
+        <div className="records-table">
+          <div className="records-header records-row">
+            <span className="header-col">Project Name</span>
+            <span className="header-col">Client Name</span>
+            <span className="header-col">Address</span>
+            <span className="header-col">Final Price</span>
+          </div>
+          {projects.map(project => (
+            <div key={project.id}>
+              <div className="records-row" onClick={() => setExpandedRow(expandedRow === project.id ? null : project.id)}>
+                <span className="data-col">{project.projectName}</span>
+                <span className="data-col">{project.clientName}</span>
+                <span className="data-col">{project.address}</span>
+                <span className="data-col total-price">
+                  ${project.finalPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+                <button className="expand-btn">
+                  {expandedRow === project.id ? '▲' : '▼'}
+                </button>
+              </div>
+              {expandedRow === project.id && (
+                <div className="item-details">
+                  <div className="details-header details-row">
+                    <span>Item</span>
+                    <span>Square Feet</span>
+                  </div>
+                  {project.items.map((item, index) => (
+                    <div key={index} className="details-row">
+                      <span>{item.type}</span>
+                      <span>{item.sf}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
         </div>
       </div>
     </div>
@@ -362,6 +484,7 @@ function AuthPage() {
 export default function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState('calculator');
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -383,9 +506,17 @@ export default function App() {
     );
   }
 
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
+
   return (
     user ? (
-      <PriceCalculator user={user} onLogout={handleLogout} />
+      currentPage === 'calculator' ? (
+        <PriceCalculator user={user} onLogout={handleLogout} onPageChange={handlePageChange} />
+      ) : (
+        <RecordsPage user={user} onLogout={handleLogout} onPageChange={handlePageChange} />
+      )
     ) : (
       <AuthPage />
     )
