@@ -143,7 +143,7 @@ function PriceCalculator({ user, onLogout }) {
             <div key={item.id} className="item-row">
               {/* Dropdown */}
               <div className="input-group">
-                <label htmlFor={`type-${item.id}`} className="sr-only">類型</label>
+                <label htmlFor={`type-${item.id}`} className="sr-only">Type</label>
                 <select
                   id={`type-${item.id}`}
                   value={item.type}
@@ -160,7 +160,7 @@ function PriceCalculator({ user, onLogout }) {
 
               {/* Square Footage Input */}
               <div className="input-group">
-                <label htmlFor={`sf-${item.id}`} className="sr-only">平方英尺</label>
+                <label htmlFor={`sf-${item.id}`} className="sr-only">Square Feet</label>
                 <input
                   id={`sf-${item.id}`}
                   type="number"
@@ -177,7 +177,7 @@ function PriceCalculator({ user, onLogout }) {
                   onClick={() => handleRemoveItem(item.id)}
                   className="remove-btn"
                 >
-                  移除
+                  Remove
                 </button>
               )}
             </div>
@@ -190,13 +190,13 @@ function PriceCalculator({ user, onLogout }) {
             onClick={handleAddItem}
             className="add-btn"
           >
-            + 新增項目
+            + Add Item
           </button>
         </div>
 
         {/* Total Price Display */}
         <div className="total-display">
-          <span className="total-label">總價：</span>
+          <span className="total-label">Total Price:</span>
           <span className="total-price">
             ${totalPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </span>
@@ -293,7 +293,12 @@ function AuthPage({ onLoginSuccess }) {
             </div>
           )}
           {error && <p className="error-message">{error}</p>}
-          <button type="submit" className="auth-btn">{isSignUp ? 'Sign Up' : 'Login'}</button>
+          <button type="submit" className="auth-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+            </svg>
+            {isSignUp ? 'Sign Up' : 'Login'}
+          </button>
         </form>
         <div className="auth-links">
           <button className="link-btn" onClick={() => setIsSignUp(!isSignUp)}>
