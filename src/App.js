@@ -13,7 +13,7 @@ import { getFirestore, collection, addDoc, onSnapshot, query } from 'firebase/fi
 import './App.css';
 
 // Firebase configuration
-// You MUST replace this with your own Firebase project configuration
+// 您必須將此替換為您自己的 Firebase 專案設定
 const firebaseConfig = {
   apiKey: "AIzaSyDw0ZTTDzVfB-IiLBlK8LlZlLS2sNdDF0U",
   authDomain: "remodelingbid.firebaseapp.com",
@@ -23,27 +23,27 @@ const firebaseConfig = {
   appId: "1:232389086436:web:50f47b5a2f9176eea570f1"
 };
 
-// Initialize Firebase
+// 初始化 Firebase
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// Pricing calculator component
+// 價格計算器元件
 function PriceCalculator({ user, onLogout, onPageChange }) {
-  // State to hold the list of items selected by the user
+  // 用於儲存使用者選擇的項目列表的狀態
   const [items, setItems] = useState([
-    { id: uuidv4(), type: 'Full gut', sf: '' } // Initial item
+    { id: uuidv4(), type: 'Full gut', sf: '' } // 初始項目
   ]);
-  // State to hold the final calculated price
+  // 用於儲存最終計算價格的狀態
   const [totalPrice, setTotalPrice] = useState(0);
 
-  // New state to hold project details
+  // 用於儲存專案詳細資訊的新狀態
   const [projectName, setProjectName] = useState('');
   const [address, setAddress] = useState('');
   const [clientName, setClientName] = useState('');
   const [saveStatus, setSaveStatus] = useState('');
 
-  // Define a map of pricing rules based on the provided image
+  // 根據提供的圖片定義價格規則對應
   const PRICING_RULES = {
     'Full gut': (sf) => {
       const parsedSF = parseFloat(sf);
@@ -93,7 +93,7 @@ function PriceCalculator({ user, onLogout, onPageChange }) {
     },
   };
 
-  // Recalculates the total price whenever the items change
+  // 每次項目變更時重新計算總價
   useEffect(() => {
     let total = 0;
     items.forEach(item => {
@@ -105,24 +105,24 @@ function PriceCalculator({ user, onLogout, onPageChange }) {
     setTotalPrice(total);
   }, [items]);
 
-  // Handles changes to the dropdown or text box for a specific item
+  // 處理特定項目的下拉選單或文字框變更
   const handleChange = (id, field, value) => {
     setItems(items.map(item =>
       item.id === id ? { ...item, [field]: value } : item
     ));
   };
 
-  // Adds a new dropdown and text box pair
+  // 新增一個下拉選單和文字框配對
   const handleAddItem = () => {
     setItems([...items, { id: uuidv4(), type: 'Full gut', sf: '' }]);
   };
 
-  // Removes an item from the list
+  // 從列表中移除一個項目
   const handleRemoveItem = (id) => {
     setItems(items.filter(item => item.id !== id));
   };
 
-  // Function to save the project to Firestore
+  // 將專案儲存到 Firestore 的函數
   const saveProject = async () => {
     if (!projectName || !address || !clientName) {
       setSaveStatus("Please fill out all project details before saving.");
@@ -150,8 +150,8 @@ function PriceCalculator({ user, onLogout, onPageChange }) {
     }
   };
 
-  // Updated options array. The 'value' must match a key in PRICING_RULES.
-  // The 'label' is the text the user sees in the dropdown.
+  // 更新後的選項陣列。'value' 必須與 PRICING_RULES 中的鍵相符。
+  // 'label' 是使用者在下拉選單中看到的文字。
   const options = [
     { value: 'Full gut', label: 'Full gut' },
     { value: 'Additional building/ new construction', label: 'Additional building / new construction' },
@@ -173,7 +173,7 @@ function PriceCalculator({ user, onLogout, onPageChange }) {
           <button onClick={onLogout} className="logout-btn">Logout</button>
         </header>
         
-        {/* Navigation buttons */}
+        {/* 導航按鈕 */}
         <div className="nav-buttons">
           <button className="nav-btn-active">Calculator</button>
           <button onClick={() => onPageChange('records')} className="nav-btn">Records</button>
@@ -181,7 +181,7 @@ function PriceCalculator({ user, onLogout, onPageChange }) {
         
         <h1 className="title">Pricing Calculator</h1>
         
-        {/* New input fields for project details */}
+        {/* 專案詳細資訊的新輸入欄位 */}
         <div className="project-details">
           <div className="input-group">
             <input
@@ -212,11 +212,11 @@ function PriceCalculator({ user, onLogout, onPageChange }) {
           </div>
         </div>
         
-        {/* Container for the list of items */}
+        {/* 項目列表容器 */}
         <div className="items-container">
           {items.map((item) => (
             <div key={item.id} className="item-row">
-              {/* Dropdown */}
+              {/* 下拉選單 */}
               <div className="input-group">
                 <label htmlFor={`type-${item.id}`} className="sr-only">Type</label>
                 <select
@@ -233,7 +233,7 @@ function PriceCalculator({ user, onLogout, onPageChange }) {
                 </select>
               </div>
 
-              {/* Square Footage Input */}
+              {/* 平方英尺輸入 */}
               <div className="input-group">
                 <label htmlFor={`sf-${item.id}`} className="sr-only">Square Feet</label>
                 <input
@@ -246,7 +246,7 @@ function PriceCalculator({ user, onLogout, onPageChange }) {
                 />
               </div>
 
-              {/* Remove Button */}
+              {/* 移除按鈕 */}
               {items.length > 1 && (
                 <button
                   onClick={() => handleRemoveItem(item.id)}
@@ -259,7 +259,7 @@ function PriceCalculator({ user, onLogout, onPageChange }) {
           ))}
         </div>
         
-        {/* Add Item Button */}
+        {/* 新增項目按鈕 */}
         <div className="add-btn-container">
           <button
             onClick={handleAddItem}
@@ -269,10 +269,10 @@ function PriceCalculator({ user, onLogout, onPageChange }) {
           </button>
         </div>
 
-        {/* Total Price Display */}
+        {/* 總價顯示 */}
         <div className="total-display">
           <span className="total-label">Total Price:</span>
-          <span className="total-price">
+          <span className="calculator-total-price">
             ${totalPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </span>
         </div>
@@ -287,13 +287,13 @@ function PriceCalculator({ user, onLogout, onPageChange }) {
   );
 }
 
-// Records page component
+// 紀錄頁面元件
 function RecordsPage({ user, onLogout, onPageChange }) {
   const [projects, setProjects] = useState([]);
   const [expandedRow, setExpandedRow] = useState(null);
 
   useEffect(() => {
-    // Check if user is authenticated before fetching data
+    // 檢查使用者是否已認證後才獲取資料
     if (!user) return;
     
     const q = query(collection(db, 'projects'));
@@ -315,7 +315,7 @@ function RecordsPage({ user, onLogout, onPageChange }) {
           <button onClick={onLogout} className="logout-btn">Logout</button>
         </header>
         
-        {/* Navigation buttons */}
+        {/* 導航按鈕 */}
         <div className="nav-buttons">
           <button onClick={() => onPageChange('calculator')} className="nav-btn">Calculator</button>
           <button className="nav-btn-active">Records</button>
@@ -365,7 +365,7 @@ function RecordsPage({ user, onLogout, onPageChange }) {
   );
 }
 
-// Authentication component
+// 認證元件
 function AuthPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -480,7 +480,7 @@ function AuthPage() {
   );
 }
 
-// Main App component to handle authentication state
+// 主應用程式元件，用於處理認證狀態
 export default function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);

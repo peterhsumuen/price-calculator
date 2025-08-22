@@ -145,15 +145,16 @@ body {
   }
 }
 
-.total-price {
-  font-size: 2rem;
+/* New, larger style for the total price on the calculator page */
+.calculator-total-price {
+  font-size: 2.25rem;
   font-weight: 800;
   color: #2563eb;
 }
 
 @media (min-width: 640px) {
-  .total-price {
-    font-size: 2.25rem;
+  .calculator-total-price {
+    font-size: 2.5rem;
   }
 }
 
@@ -387,6 +388,7 @@ body {
   color: #2563eb;
   font-weight: 600;
   white-space: nowrap;
+  font-size: 1rem;
 }
 
 .expand-btn {
