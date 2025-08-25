@@ -11,3 +11,4 @@ PyMuPDF
 # For install requirements.txt
 
 # and use the command firebase deploy --only functions
+# make sure the 
