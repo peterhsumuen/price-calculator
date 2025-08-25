@@ -1,0 +1,12 @@
+firebase-admin
+firebase-functions
+google-cloud-storage
+google-cloud-firestore
+google-cloud-aiplatform==1.38
+vertexai
+PyMuPDF
+
+# Use python -m pip install -r requirements.txt
+# For install requirements.txt
+
+# and use the command firebase deploy --only functions

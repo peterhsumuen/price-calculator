@@ -420,3 +420,54 @@ body {
   border-bottom: 1px solid #d1d5db;
   margin-bottom: 0.5rem;
 }
+
+/* Styling for Blueprint Analyzer Page */
+.file-upload-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.file-input {
+  /* You may need to override some of the input-field styles for the file input */
+  width: 100%;
+}
+
+.file-upload-container .add-btn {
+  width: 100%;
+}
+
+@media (min-width: 640px) {
+  .file-upload-container {
+    flex-direction: row;
+  }
+  .file-upload-container .add-btn {
+    width: auto;
+  }
+}
+
+.analysis-results {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  background-color: #f9fafb;
+  border-radius: 0.5rem;
+  border: 1px solid #e5e7eb;
+}
+
+.analysis-results h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 1rem;
+}
+
+.result-json {
+  background-color: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  overflow-x: auto;
+  font-family: monospace;
+}
