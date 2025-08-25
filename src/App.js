@@ -90,7 +90,7 @@ function PriceCalculator({ user, onLogout, onPageChange, blueprintData }) {
   useEffect(() => {
     if (blueprintData) {
       const newItems = Object.entries(blueprintData)
-        .filter(([key]) => PRICING_RULES[key] !== undefined) // Only use keys that exist in pricing rules
+        .filter(([key]) => PRICING_RULES[key] !== undefined)
         .map(([type, sf]) => ({
           id: uuidv4(),
           type,
@@ -142,7 +142,7 @@ function PriceCalculator({ user, onLogout, onPageChange, blueprintData }) {
         items: items.map(item => ({ type: item.type, sf: item.sf }))
       });
       setSaveStatus("Project saved successfully!");
-      setTimeout(() => setSaveStatus(''), 3000); // Clear status message after 3 seconds
+      setTimeout(() => setSaveStatus(''), 3000);
       setProjectName('');
       setAddress('');
       setClientName('');
@@ -271,7 +271,7 @@ function RecordsPage({ user, onLogout, onPageChange }) {
                 <span className="data-col">{project.projectName}</span>
                 <span className="data-col">{project.clientName}</span>
                 <span className="data-col">{project.address}</span>
-                <span className="data-col total-price">${project.finalPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                <span className="data-col total-price">${(project.finalPrice ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 <button className="expand-btn">{expandedRow === project.id ? '▲' : '▼'}</button>
               </div>
               {expandedRow === project.id && (
@@ -280,7 +280,7 @@ function RecordsPage({ user, onLogout, onPageChange }) {
                     <span>Item</span>
                     <span>Square Feet</span>
                   </div>
-                  {project.items.map((item, index) => (
+                  {(project.items || []).map((item, index) => (
                     <div key={index} className="details-row">
                       <span>{item.type}</span>
                       <span>{item.sf}</span>
@@ -327,7 +327,10 @@ function BlueprintAnalyzerPage({ user, onLogout, onPageChange }) {
     setError('');
     setAnalysisResult(null);
 
-    const functionUrl = 'https://analyze-blueprint-w47bikyqya-uc.a.run.app';
+    const functionUrl =
+      process.env.NODE_ENV === 'development'
+        ? 'https://analyze-blueprint-w47bikyqya-uc.a.run.app'
+        : 'https://analyze-blueprint-w47bikyqya-uc.a.run.app';
 
     const getBase64 = (file) => new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -348,17 +351,41 @@ function BlueprintAnalyzerPage({ user, onLogout, onPageChange }) {
 
       const response = await fetch(functionUrl, {
         method: 'POST',
+        mode: 'cors', // IMPORTANT for browsers
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
 
+      // Robust error handling: try to parse JSON; if not JSON, surface text
+      const text = await response.text();
+      let parsed;
+      try { parsed = JSON.parse(text); } catch { parsed = { details: text }; }
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.details || 'The server returned an error.');
+        throw new Error(parsed.details || 'The server returned an error.');
       }
 
-      const result = await response.json();
-      setAnalysisResult(result.analysisResult);
+      // --- Normalize keys from server/model to match PRICING_RULES ---
+      const keyMap = {
+        'Full gut': 'Full gut',
+        'Additional building': 'Additional building/ new construction',
+        'Structural Wall removeal': 'Structural Wall removal',      // server/model typo → UI key
+        '2nd Structural Wall removeal': '2nd Structural Wall removal',
+        'Kitchen': 'Kitchen',
+        'Bathroom': 'Bathroom',
+        'Living room': 'Living room',
+        'Bedroom': 'Bedroom',
+        'Garage': 'Garage',
+      };
+
+      const normalized = {};
+      const raw = parsed.analysisResult || {};
+      Object.entries(raw).forEach(([k, v]) => {
+        const mapped = keyMap[k];
+        if (mapped) normalized[mapped] = v;
+      });
+
+      setAnalysisResult(normalized);
 
     } catch (err) {
       setError(`Analysis failed: ${err.message}`);

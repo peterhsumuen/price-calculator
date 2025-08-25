@@ -3,6 +3,7 @@ firebase-functions
 google-cloud-storage
 google-cloud-firestore
 google-cloud-aiplatform==1.38
+google-genai>=1.0.0
 vertexai
 PyMuPDF
 
