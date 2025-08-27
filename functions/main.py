@@ -1,5 +1,3 @@
-# main.py
-
 import uuid
 import base64, json, os, fitz
 import firebase_admin
@@ -108,7 +106,6 @@ def analyze_blueprint(req):
 
     try:
         data = req.get_json(silent=True) or {}
-        # **修改 1: 不再要求 projectName, address, clientName**
         if not all(k in data for k in ["fileData", "userId"]):
             return https_fn.Response("Missing fields", 400, headers=_cors_headers_for(origin))
 
@@ -126,9 +123,6 @@ def analyze_blueprint(req):
         bucket_name = _get_bucket()
         storage_client = storage.Client()
         bucket = storage_client.bucket(bucket_name)
-
-        # **修改 2: 生成一個唯一的檔案名，而不是使用項目名稱**
-        # 這確保了即使沒有項目名稱，檔案名也不會衝突
         unique_id = str(uuid.uuid4())
         fname = f"blueprints/{data['userId']}/{unique_id}.png"
         blob = bucket.blob(fname)
@@ -199,8 +193,6 @@ def analyze_blueprint(req):
         except Exception:
             analysis = {"error": "parseFailure"}
 
-        # **修改 4: 在返回的 JSON 中包含 blueprint_url**
-        # 這樣前端才能接收到這個URL，並在之後將它傳遞給 Calculator
         return https_fn.Response(
             json.dumps({"analysisResult": analysis, "blueprintUrl": blueprint_url}),
             200,

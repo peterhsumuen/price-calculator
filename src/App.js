@@ -9,7 +9,7 @@ import {
   sendPasswordResetEmail,
   signOut
 } from 'firebase/auth';
-import { getFirestore, collection, addDoc, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, where } from 'firebase/firestore';
 import './App.css';
 
 // Firebase configuration
@@ -37,7 +37,6 @@ function PriceCalculator({ user, onLogout, onPageChange, blueprintData }) {
   const [address, setAddress] = useState('');
   const [clientName, setClientName] = useState('');
   const [saveStatus, setSaveStatus] = useState('');
-  // **新增 State 來儲存從分析器傳來的數據**
   const [blueprintUrl, setBlueprintUrl] = useState(null);
   const [analysisData, setAnalysisData] = useState(null);
 
@@ -90,15 +89,13 @@ function PriceCalculator({ user, onLogout, onPageChange, blueprintData }) {
     },
   };
 
-  // *** THIS IS THE MODIFIED SECTION ***
-  // This hook now correctly handles the data from the Blueprint Analyzer
+  // Hndles the data from the Blueprint Analyzer
   useEffect(() => {
     if (blueprintData) {
       // 1. Populate the project detail fields
       setProjectName(blueprintData.projectName || '');
       setAddress(blueprintData.address || '');
       setClientName(blueprintData.clientName || '');
-      // **從 blueprintData 中獲取並設定 URL 和分析結果**
       setBlueprintUrl(blueprintData.blueprintUrl || null);
       setAnalysisData(blueprintData.analysisResult || null);
 
@@ -120,7 +117,6 @@ function PriceCalculator({ user, onLogout, onPageChange, blueprintData }) {
     }
   }, [blueprintData]);
 
-  // *** THIS IS THE MODIFIED PRICING LOGIC SECTION ***
   useEffect(() => {
     let total = 0;
     // First, determine if this is a "Full gut" project by checking the list
@@ -187,9 +183,9 @@ function PriceCalculator({ user, onLogout, onPageChange, blueprintData }) {
         clientName,
         finalPrice: totalPrice,
         items: items.map(item => ({ type: item.type, sf: item.sf })),
-        blueprintUrl: blueprintUrl, // **新增**
-        analysisResult: analysisData, // **新增**
-        createdAt: new Date() // 使用客戶端時間或 Firestore 伺服器時間
+        blueprintUrl: blueprintUrl,
+        analysisResult: analysisData, 
+        createdAt: new Date() 
       });
       setSaveStatus("Project saved successfully!");
       setTimeout(() => setSaveStatus(''), 3000);
@@ -197,8 +193,8 @@ function PriceCalculator({ user, onLogout, onPageChange, blueprintData }) {
       setAddress('');
       setClientName('');
       setItems([{ id: uuidv4(), type: 'Full gut', sf: '' }]);
-      setBlueprintUrl(null); // 清理 URL
-      setAnalysisData(null); // 清理分析數據
+      setBlueprintUrl(null); 
+      setAnalysisData(null); 
     } catch (e) {
       setSaveStatus("Error saving project: " + e.message);
     }
@@ -285,12 +281,28 @@ function RecordsPage({ user, onLogout, onPageChange }) {
 
   useEffect(() => {
     if (!user) return;
-    // **修改1: 增加 createdAt 排序，讓最新的記錄顯示在最上面**
-    const q = query(collection(db, 'projects'), orderBy('createdAt', 'desc')); 
+
+    const ADMIN_EMAILS = ['test@baroncnr.com']; // Admin emails, add more if needed
+
+    const isAdmin = ADMIN_EMAILS.includes(user.email);
+
+    let q; 
+
+    if (isAdmin) {
+      q = query(collection(db, 'projects'), orderBy('createdAt', 'desc'));
+    } else {
+      q = query(
+        collection(db, 'projects'),
+        where('userName', '==', user.email),
+        orderBy('createdAt', 'desc')
+      );
+    }
+    
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const projectList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setProjects(projectList);
     });
+
     return () => unsubscribe();
   }, [user]);
 
@@ -311,6 +323,7 @@ function RecordsPage({ user, onLogout, onPageChange }) {
         <h1 className="title">Project Records</h1>
 
         <div className="records-table">
+          {/* Step 1: Remove "User Created" from the header */}
           <div className="records-header records-row">
             <span className="header-col">Project Name</span>
             <span className="header-col">Client Name</span>
@@ -320,6 +333,7 @@ function RecordsPage({ user, onLogout, onPageChange }) {
           </div>
           {projects.map(project => (
             <div key={project.id}>
+              {/* Step 2: Remove the user's name from the main row */}
               <div className="records-row" onClick={() => setExpandedRow(expandedRow === project.id ? null : project.id)}>
                 <span className="data-col">{project.projectName}</span>
                 <span className="data-col">{project.clientName}</span>
@@ -329,8 +343,6 @@ function RecordsPage({ user, onLogout, onPageChange }) {
               </div>
               {expandedRow === project.id && (
                 <div className="item-details">
-
-                  {/* *** 修改 2: 在這裡增加顯示藍圖 URL 的區塊 *** */}
                   {project.blueprintUrl && (
                     <div className="details-row blueprint-link-row">
                       <span>Blueprint</span>
@@ -341,7 +353,14 @@ function RecordsPage({ user, onLogout, onPageChange }) {
                       </span>
                     </div>
                   )}
-                  {/* ******************************************* */}
+
+                  {/* Step 3: Add the "User Created" info here */}
+                  {project.userName && (
+                    <div className="details-row">
+                      <span>User Created</span>
+                      <span>{project.userName}</span>
+                    </div>
+                  )}
 
                   <div className="details-header details-row">
                     <span>Item</span>
@@ -369,13 +388,6 @@ function BlueprintAnalyzerPage({ user, onLogout, onPageChange }) {
   const [analysisResult, setAnalysisResult] = useState(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState('');
-  
-  // **修改 1: 移除 projectName, address, clientName 的 state**
-  // const [projectName, setProjectName] = useState('');
-  // const [address, setAddress] = useState('');
-  // const [clientName, setClientName] = useState('');
-
-  // **新增 State 來儲存上傳後的藍圖 URL**
   const [uploadedBlueprintUrl, setUploadedBlueprintUrl] = useState(null);
 
   const handleFileChange = (e) => {
@@ -399,7 +411,7 @@ function BlueprintAnalyzerPage({ user, onLogout, onPageChange }) {
     setIsAnalyzing(true);
     setError('');
     setAnalysisResult(null);
-    setUploadedBlueprintUrl(null); // 重置 URL
+    setUploadedBlueprintUrl(null); 
 
     const functionUrl =
       process.env.NODE_ENV === 'development'
@@ -437,10 +449,10 @@ function BlueprintAnalyzerPage({ user, onLogout, onPageChange }) {
       }
 
       const analysisData = parsed.analysisResult || {};
-      const blueprintUrlFromServer = parsed.blueprintUrl || null; // **接收從後端返回的 URL**
+      const blueprintUrlFromServer = parsed.blueprintUrl || null;
       
       setAnalysisResult(analysisData);
-      setUploadedBlueprintUrl(blueprintUrlFromServer); // **儲存 URL 到 state**
+      setUploadedBlueprintUrl(blueprintUrlFromServer); 
 
     } catch (err) {
       setError(`Analysis failed: ${err.message}`);
@@ -467,8 +479,8 @@ function BlueprintAnalyzerPage({ user, onLogout, onPageChange }) {
         address: analysisResult["Project Address"] || '',
         clientName: analysisResult["Client Name"] || '',
         items: filteredItems,
-        blueprintUrl: uploadedBlueprintUrl, // 傳遞 URL
-        analysisResult: analysisResult // 傳遞完整的分析結果
+        blueprintUrl: uploadedBlueprintUrl, 
+        analysisResult: analysisResult 
     };
 
     onPageChange('calculator', dataForCalculator);
@@ -492,11 +504,6 @@ function BlueprintAnalyzerPage({ user, onLogout, onPageChange }) {
         <p>Upload a blueprint (PNG, JPG, or PDF) to automatically extract square footage.</p>
 
         {/* **修改 5: 移除 project details 的輸入框 JSX** */}
-        {/*
-        <div className="project-details">
-            ... (相關的 input-group 被刪除) ...
-        </div>
-        */}
         
         <div className="file-upload-container">
           <input
