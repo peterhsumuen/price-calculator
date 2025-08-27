@@ -37,6 +37,9 @@ function PriceCalculator({ user, onLogout, onPageChange, blueprintData }) {
   const [address, setAddress] = useState('');
   const [clientName, setClientName] = useState('');
   const [saveStatus, setSaveStatus] = useState('');
+  // **新增 State 來儲存從分析器傳來的數據**
+  const [blueprintUrl, setBlueprintUrl] = useState(null);
+  const [analysisData, setAnalysisData] = useState(null);
 
   const PRICING_RULES = {
     'Full gut': (sf) => {
@@ -95,6 +98,9 @@ function PriceCalculator({ user, onLogout, onPageChange, blueprintData }) {
       setProjectName(blueprintData.projectName || '');
       setAddress(blueprintData.address || '');
       setClientName(blueprintData.clientName || '');
+      // **從 blueprintData 中獲取並設定 URL 和分析結果**
+      setBlueprintUrl(blueprintData.blueprintUrl || null);
+      setAnalysisData(blueprintData.analysisResult || null);
 
       // 2. Populate the remodeling items
       const newItems = Object.entries(blueprintData.items || {})
@@ -172,6 +178,7 @@ function PriceCalculator({ user, onLogout, onPageChange, blueprintData }) {
     }
     setSaveStatus("Saving...");
     try {
+      // **在儲存時，將 blueprintUrl 和 analysisResult 一起加入**
       await addDoc(collection(db, `projects`), {
         userId: user.uid,
         userName: user.email,
@@ -179,7 +186,10 @@ function PriceCalculator({ user, onLogout, onPageChange, blueprintData }) {
         address,
         clientName,
         finalPrice: totalPrice,
-        items: items.map(item => ({ type: item.type, sf: item.sf }))
+        items: items.map(item => ({ type: item.type, sf: item.sf })),
+        blueprintUrl: blueprintUrl, // **新增**
+        analysisResult: analysisData, // **新增**
+        createdAt: new Date() // 使用客戶端時間或 Firestore 伺服器時間
       });
       setSaveStatus("Project saved successfully!");
       setTimeout(() => setSaveStatus(''), 3000);
@@ -187,6 +197,8 @@ function PriceCalculator({ user, onLogout, onPageChange, blueprintData }) {
       setAddress('');
       setClientName('');
       setItems([{ id: uuidv4(), type: 'Full gut', sf: '' }]);
+      setBlueprintUrl(null); // 清理 URL
+      setAnalysisData(null); // 清理分析數據
     } catch (e) {
       setSaveStatus("Error saving project: " + e.message);
     }
@@ -342,9 +354,14 @@ function BlueprintAnalyzerPage({ user, onLogout, onPageChange }) {
   const [analysisResult, setAnalysisResult] = useState(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState('');
-  const [projectName, setProjectName] = useState('');
-  const [address, setAddress] = useState('');
-  const [clientName, setClientName] = useState('');
+  
+  // **修改 1: 移除 projectName, address, clientName 的 state**
+  // const [projectName, setProjectName] = useState('');
+  // const [address, setAddress] = useState('');
+  // const [clientName, setClientName] = useState('');
+
+  // **新增 State 來儲存上傳後的藍圖 URL**
+  const [uploadedBlueprintUrl, setUploadedBlueprintUrl] = useState(null);
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
@@ -358,14 +375,16 @@ function BlueprintAnalyzerPage({ user, onLogout, onPageChange }) {
   };
 
   const handleAnalyze = async () => {
-    if (!blueprintFile || !projectName || !address || !clientName) {
-      setError('Please fill out all project details and select a file.');
+    // **修改 2: 移除對 project details 的檢查**
+    if (!blueprintFile) {
+      setError('Please select a file.');
       return;
     }
 
     setIsAnalyzing(true);
     setError('');
     setAnalysisResult(null);
+    setUploadedBlueprintUrl(null); // 重置 URL
 
     const functionUrl =
       process.env.NODE_ENV === 'development'
@@ -381,11 +400,9 @@ function BlueprintAnalyzerPage({ user, onLogout, onPageChange }) {
 
     try {
       const fileData = await getBase64(blueprintFile);
+      // **修改 3: payload 中只發送必要數據**
       const payload = {
         fileData,
-        projectName,
-        address,
-        clientName,
         userId: user.uid
       };
 
@@ -405,7 +422,10 @@ function BlueprintAnalyzerPage({ user, onLogout, onPageChange }) {
       }
 
       const analysisData = parsed.analysisResult || {};
+      const blueprintUrlFromServer = parsed.blueprintUrl || null; // **接收從後端返回的 URL**
+      
       setAnalysisResult(analysisData);
+      setUploadedBlueprintUrl(blueprintUrlFromServer); // **儲存 URL 到 state**
 
     } catch (err) {
       setError(`Analysis failed: ${err.message}`);
@@ -426,11 +446,14 @@ function BlueprintAnalyzerPage({ user, onLogout, onPageChange }) {
         }
     }
 
+    // **修改 4: 將 blueprintUrl 和 analysisResult 一起傳遞給 Calculator 頁面**
     const dataForCalculator = {
-        projectName: analysisResult["Project Name"] || projectName,
-        address: analysisResult["Project Address"] || address,
-        clientName: analysisResult["Client Name"] || clientName,
-        items: filteredItems
+        projectName: analysisResult["Project Name"] || '',
+        address: analysisResult["Project Address"] || '',
+        clientName: analysisResult["Client Name"] || '',
+        items: filteredItems,
+        blueprintUrl: uploadedBlueprintUrl, // 傳遞 URL
+        analysisResult: analysisResult // 傳遞完整的分析結果
     };
 
     onPageChange('calculator', dataForCalculator);
@@ -453,18 +476,13 @@ function BlueprintAnalyzerPage({ user, onLogout, onPageChange }) {
         <h1 className="title">Blueprint Analyzer</h1>
         <p>Upload a blueprint (PNG, JPG, or PDF) to automatically extract square footage.</p>
 
+        {/* **修改 5: 移除 project details 的輸入框 JSX** */}
+        {/*
         <div className="project-details">
-            <div className="input-group">
-                <input type="text" placeholder="Project Name" value={projectName} onChange={(e) => setProjectName(e.target.value)} className="input-field" />
-            </div>
-            <div className="input-group">
-                <input type="text" placeholder="Address" value={address} onChange={(e) => setAddress(e.target.value)} className="input-field" />
-            </div>
-            <div className="input-group">
-                <input type="text" placeholder="Client Name" value={clientName} onChange={(e) => setClientName(e.target.value)} className="input-field" />
-            </div>
+            ... (相關的 input-group 被刪除) ...
         </div>
-
+        */}
+        
         <div className="file-upload-container">
           <input
             type="file"
@@ -474,7 +492,8 @@ function BlueprintAnalyzerPage({ user, onLogout, onPageChange }) {
           />
           <button
             onClick={handleAnalyze}
-            disabled={isAnalyzing || !blueprintFile || !projectName || !address || !clientName}
+            // **修改 6: 更新按鈕的禁用邏輯**
+            disabled={isAnalyzing || !blueprintFile}
             className="add-btn"
           >
             {isAnalyzing ? 'Analyzing...' : 'Analyze Blueprint'}
