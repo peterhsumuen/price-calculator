@@ -87,27 +87,67 @@ function PriceCalculator({ user, onLogout, onPageChange, blueprintData }) {
     },
   };
 
+  // *** THIS IS THE MODIFIED SECTION ***
+  // This hook now correctly handles the data from the Blueprint Analyzer
   useEffect(() => {
     if (blueprintData) {
-      const newItems = Object.entries(blueprintData)
+      // 1. Populate the project detail fields
+      setProjectName(blueprintData.projectName || '');
+      setAddress(blueprintData.address || '');
+      setClientName(blueprintData.clientName || '');
+
+      // 2. Populate the remodeling items
+      const newItems = Object.entries(blueprintData.items || {})
         .filter(([key]) => PRICING_RULES[key] !== undefined)
         .map(([type, sf]) => ({
           id: uuidv4(),
           type,
           sf: sf.toString()
         }));
-      setItems(newItems.length > 0 ? newItems : [{ id: uuidv4(), type: 'Full gut', sf: '' }]);
+      
+      if (newItems.length > 0) {
+        setItems(newItems);
+      } else {
+        // If no valid items came from the analyzer, reset to a default state
+        setItems([{ id: uuidv4(), type: 'Full gut', sf: '' }]);
+      }
     }
   }, [blueprintData]);
 
+  // *** THIS IS THE MODIFIED PRICING LOGIC SECTION ***
   useEffect(() => {
     let total = 0;
+    // First, determine if this is a "Full gut" project by checking the list
+    const fullGutSF = parseFloat(items.find(item => item.type === 'Full gut')?.sf) || 0;
+
     items.forEach(item => {
-      const calculatePrice = PRICING_RULES[item.type];
-      if (calculatePrice) {
-        total += calculatePrice(item.sf);
+      const parsedSF = parseFloat(item.sf) || 0;
+      if (parsedSF === 0) return; // Skip items with no SF value
+
+      const itemType = item.type;
+      let priceForItem = 0;
+
+      // Check if the item type has special logic dependent on "Full gut"
+      const isSpecialCase = [
+        'Structural Wall removal', 
+        '2nd Structural Wall removal', 
+        'Living room', 
+        'Bedroom'
+      ].includes(itemType);
+
+      if (isSpecialCase && fullGutSF === 0) {
+        // If there is NO "Full gut" item, these items should be priced using the "Full gut" tiered rule
+        priceForItem = PRICING_RULES['Full gut'](parsedSF);
+      } else {
+        // Otherwise, use the standard rule defined for the item
+        const calculatePrice = PRICING_RULES[itemType];
+        if (calculatePrice) {
+          priceForItem = calculatePrice(parsedSF);
+        }
       }
+      total += priceForItem;
     });
+
     setTotalPrice(total);
   }, [items]);
 
@@ -351,12 +391,11 @@ function BlueprintAnalyzerPage({ user, onLogout, onPageChange }) {
 
       const response = await fetch(functionUrl, {
         method: 'POST',
-        mode: 'cors', // IMPORTANT for browsers
+        mode: 'cors',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
 
-      // Robust error handling: try to parse JSON; if not JSON, surface text
       const text = await response.text();
       let parsed;
       try { parsed = JSON.parse(text); } catch { parsed = { details: text }; }
@@ -365,27 +404,8 @@ function BlueprintAnalyzerPage({ user, onLogout, onPageChange }) {
         throw new Error(parsed.details || 'The server returned an error.');
       }
 
-      // --- Normalize keys from server/model to match PRICING_RULES ---
-      const keyMap = {
-        'Full gut': 'Full gut',
-        'Additional building': 'Additional building/ new construction',
-        'Structural Wall removeal': 'Structural Wall removal',      // server/model typo → UI key
-        '2nd Structural Wall removeal': '2nd Structural Wall removal',
-        'Kitchen': 'Kitchen',
-        'Bathroom': 'Bathroom',
-        'Living room': 'Living room',
-        'Bedroom': 'Bedroom',
-        'Garage': 'Garage',
-      };
-
-      const normalized = {};
-      const raw = parsed.analysisResult || {};
-      Object.entries(raw).forEach(([k, v]) => {
-        const mapped = keyMap[k];
-        if (mapped) normalized[mapped] = v;
-      });
-
-      setAnalysisResult(normalized);
+      const analysisData = parsed.analysisResult || {};
+      setAnalysisResult(analysisData);
 
     } catch (err) {
       setError(`Analysis failed: ${err.message}`);
@@ -393,6 +413,27 @@ function BlueprintAnalyzerPage({ user, onLogout, onPageChange }) {
     } finally {
       setIsAnalyzing(false);
     }
+  };
+
+  const handleUseInCalculator = () => {
+    if (!analysisResult) return;
+
+    const remodelingItems = analysisResult["Remodeling place and size"] || {};
+    const filteredItems = {};
+    for (const [key, value] of Object.entries(remodelingItems)) {
+        if (value !== null) {
+            filteredItems[key] = value;
+        }
+    }
+
+    const dataForCalculator = {
+        projectName: analysisResult["Project Name"] || projectName,
+        address: analysisResult["Project Address"] || address,
+        clientName: analysisResult["Client Name"] || clientName,
+        items: filteredItems
+    };
+
+    onPageChange('calculator', dataForCalculator);
   };
 
   return (
@@ -446,7 +487,7 @@ function BlueprintAnalyzerPage({ user, onLogout, onPageChange }) {
           <div className="analysis-results">
             <h3>Analysis Results:</h3>
             <pre className="result-json">{JSON.stringify(analysisResult, null, 2)}</pre>
-            <button onClick={() => onPageChange('calculator', analysisResult)} className="save-btn">
+            <button onClick={handleUseInCalculator} className="save-btn">
               Use in Calculator
             </button>
           </div>

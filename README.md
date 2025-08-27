@@ -10,3 +10,6 @@ for deploy on github page
 ### `firebase deploy --only functions`
 for deploy main.py on firebase function
 make sure to check the Function URL match on App.js
+
+### `python -m pip install -r requirements.txt`
+for installing the requirements

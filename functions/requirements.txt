@@ -6,9 +6,3 @@ google-cloud-aiplatform==1.38
 google-genai>=1.0.0
 vertexai
 PyMuPDF
-
-# Use python -m pip install -r requirements.txt
-# For install requirements.txt
-
-# and use the command firebase deploy --only functions
-# make sure the 

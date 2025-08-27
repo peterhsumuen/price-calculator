@@ -95,7 +95,7 @@ def _decode_data_uri(data_uri):
     mt = header.split(";")[0][5:] if header.startswith("data:") else ""
     return base64.b64decode(b64), (mt or "application/octet-stream")
 
-@https_fn.on_request(memory=512)
+@https_fn.on_request(memory=2048)
 def analyze_blueprint(req):
     origin = req.headers.get("Origin")
     # Helpful log to confirm what origin the server sees:
@@ -114,7 +114,7 @@ def analyze_blueprint(req):
         raw, mt = _decode_data_uri(data["fileData"])
         if mt.lower() == "application/pdf":
             pdf = fitz.open(stream=raw, filetype="pdf")
-            pix = pdf.load_page(0).get_pixmap(dpi=150)
+            pix = pdf.load_page(0).get_pixmap(dpi=300)
             img_bytes = pix.tobytes("png")
             pdf.close()
             mt_out = "image/png"
@@ -134,11 +134,63 @@ def analyze_blueprint(req):
         blueprint_url = blob.public_url
 
         client_ai = _genai_client()
-        prompt = "Analyze this blueprint image and return ONLY a JSON object..."
+        prompt = """
+        Analyze the provided image, focusing ONLY on the section labeled "PROJECT DATA". Your task is to extract specific details and format them into a precise JSON structure.
+
+        Follow these instructions carefully for each key:
+
+        1.  **Top-Level Keys:**
+            * `Project Name`: Use the first line from the "PROJECT DESCRIPTION" field.
+            * `Project Description`: Use the complete, multi-line text from the "PROJECT DESCRIPTION" field.
+            * `Project Address`: Get the value from the "PROJECT ADDRESS" field.
+            * `Client Name`: Get the value from the "OWNER" field.
+            * `Zone District`: Get the value from the "ZONE DISTRICT" field.
+            * `Type of Construction`: Get the value from the "TYPE OF CONSTRUCTION" field.
+            * `Occupancy Group`: Get the value from the "OCCUPANCY GROUP" field.
+
+        2.  **Nested "Remodeling place and size" Object:**
+            - `Full gut`: Do not fill in this unless it says Full gut or whole house remodeling on the plan.
+            - `Additional building/ new construction`: Look for areas on the plan explicitly marked as "ADDITION" or "NEW". If found, calculate their total square footage.
+            - `Structural Wall removal`: Look for notes or dashed lines indicating significant wall demolition. If found, use the same value as `Full gut`.
+            - `Kitchen`: Find the area labeled "KITCHEN" and use its calculated size.
+            - `Bathroom`: Find the area labeled "BATH" and use its calculated size.
+            - `Living room`: Find the area labeled "LIVING ROOM" or a combined "LIVING/DINING" space and use its size.
+            - `Garage`: Find the area labeled "GARAGE" and use its size.
+            - `Bedroom`: Find any area labeled "BEDROOM" and use its size. 
+            - `Landscape`: Look for any specific landscaping plans or notes.
+            - If there are multiple, add all sizes together. For example: A bedroom is 50 SF, another is 30 SF, return a bedroom with 80 SF.
+
+        Your final output must be ONLY a single, valid JSON object matching the structure below. Do not add any other text or explanations.
+
+        ```json
+        {
+        "Project Name": "REMODEL EXISTING 1-STORY HOUSE",
+        "Project Description": "REMODEL EXISTING 1-STORY HOUSE\n- REMODEL 1244.5 SQ.FT. OF LIVING AREA",
+        "Project Address": "1975 ALMA STREET, PALO ALTO",
+        "Client Name": "TIFFANY TSAO",
+        "Remodeling place and size": {
+            "Full gut": null,
+            "Additional building/ new construction": null,
+            "Structural Wall removal": null,
+            "2nd Structural Wall removal": null,
+            "Kitchen": null,
+            "Bathroom": null,
+            "Living room": 1244.5,
+            "Garage": null,
+            "Bedroom": null,
+            "Landscape": null
+        },
+        "Zone District": "RM-20",
+        "Type of Construction": "V-B, NO SPRINKLER",
+        "Occupancy Group": "R-3 / U"
+        }
+        """
+
         resp = client_ai.models.generate_content(
-            model="gemini-2.0-flash-001",
+            model="gemini-2.5-pro",
             contents=[prompt, types.Part.from_bytes(data=img_bytes, mime_type=mt_out)]
         )
+        print(f"RAW GEMINI RESPONSE ----> {resp.text}")
         txt = (resp.text or "").strip().replace("```json", "").replace("```", "")
         try:
             analysis = json.loads(txt)
