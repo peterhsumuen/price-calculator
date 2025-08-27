@@ -9,7 +9,7 @@ import {
   sendPasswordResetEmail,
   signOut
 } from 'firebase/auth';
-import { getFirestore, collection, addDoc, onSnapshot, query } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, onSnapshot, query, orderBy } from 'firebase/firestore';
 import './App.css';
 
 // Firebase configuration
@@ -285,7 +285,8 @@ function RecordsPage({ user, onLogout, onPageChange }) {
 
   useEffect(() => {
     if (!user) return;
-    const q = query(collection(db, 'projects'));
+    // **修改1: 增加 createdAt 排序，讓最新的記錄顯示在最上面**
+    const q = query(collection(db, 'projects'), orderBy('createdAt', 'desc')); 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const projectList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setProjects(projectList);
@@ -328,6 +329,20 @@ function RecordsPage({ user, onLogout, onPageChange }) {
               </div>
               {expandedRow === project.id && (
                 <div className="item-details">
+
+                  {/* *** 修改 2: 在這裡增加顯示藍圖 URL 的區塊 *** */}
+                  {project.blueprintUrl && (
+                    <div className="details-row blueprint-link-row">
+                      <span>Blueprint</span>
+                      <span>
+                        <a href={project.blueprintUrl} target="_blank" rel="noopener noreferrer">
+                          View Blueprint
+                        </a>
+                      </span>
+                    </div>
+                  )}
+                  {/* ******************************************* */}
+
                   <div className="details-header details-row">
                     <span>Item</span>
                     <span>Square Feet</span>
