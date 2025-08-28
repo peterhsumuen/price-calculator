@@ -118,7 +118,13 @@ body {
 }
 
 /* --- Forms & Inputs --- */
-.project-details,
+.project-details {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin-bottom: 20px; /* Adds consistent spacing before the items list */
+}
+
 .items-container {
   display: flex;
   flex-direction: column;
