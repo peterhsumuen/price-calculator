@@ -455,3 +455,48 @@ body {
     transform: rotate(360deg);
   }
 }
+
+/* --- Voice Analyzer Styles --- */
+.voice-recorder {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.record-btn {
+  padding: 12px 24px;
+  border: none;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 1rem;
+  transition: background-color 0.2s ease, color 0.2s ease;
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.record-btn.recording {
+  background-color: var(--danger-color);
+}
+
+.record-btn:hover {
+  background-color: var(--primary-hover-color);
+}
+
+.record-btn.recording:hover {
+  background-color: var(--danger-hover-color);
+}
+
+.analysis-results {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border-color);
+}
+
+.result-json {
+  background-color: #f3f4f6;
+  padding: 15px;
+  border-radius: var(--border-radius);
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}

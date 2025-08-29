@@ -1,8 +1,9 @@
-firebase-admin
+# Firebase and Google Cloud core libraries
 firebase-functions
+firebase-admin
 google-cloud-storage
-google-cloud-firestore
-google-cloud-aiplatform==1.38
-google-genai>=1.0.0
-vertexai
+google-cloud-speech
+google-cloud-aiplatform>=1.49.0
+
+# Library for PDF processing (imported as fitz)
 PyMuPDF

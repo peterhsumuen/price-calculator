@@ -10,13 +10,13 @@ import {
     sendPasswordResetEmail,
     signOut
 } from 'firebase/auth';
-import { 
-    getFirestore, 
-    collection, 
-    addDoc, 
-    onSnapshot, 
-    query, 
-    orderBy, 
+import {
+    getFirestore,
+    collection,
+    addDoc,
+    onSnapshot,
+    query,
+    orderBy,
     where,
     doc,
     setDoc,
@@ -58,12 +58,13 @@ const PRICING_RULES = {
 };
 
 // Price Calculator Component
-function PriceCalculator({ user, onLogout, onPageChange, initialData }) {
+function PriceCalculator({ user, onLogout, onPageChange, initialData, scopeOfWork }) {
     const [items, setItems] = useState([{ id: uuidv4(), type: 'Full gut', sf: '' }]);
     const [totalPrice, setTotalPrice] = useState(0);
     const [projectName, setProjectName] = useState('');
     const [address, setAddress] = useState('');
     const [clientName, setClientName] = useState('');
+    const [scopeOfWorkText, setScopeOfWorkText] = useState('');
     const [saveStatus, setSaveStatus] = useState('');
     const [blueprintUrl, setBlueprintUrl] = useState(null);
     const [analysisData, setAnalysisData] = useState(null);
@@ -74,6 +75,7 @@ function PriceCalculator({ user, onLogout, onPageChange, initialData }) {
             setProjectName(initialData.projectName || '');
             setAddress(initialData.address || '');
             setClientName(initialData.clientName || '');
+            setScopeOfWorkText(initialData.scopeOfWork || '');
             setBlueprintUrl(initialData.blueprintUrl || null);
             setAnalysisData(initialData.analysisResult || null);
             setEditingProjectId(initialData.id || null);
@@ -92,12 +94,19 @@ function PriceCalculator({ user, onLogout, onPageChange, initialData }) {
             setProjectName('');
             setAddress('');
             setClientName('');
+            setScopeOfWorkText('');
             setItems([{ id: uuidv4(), type: 'Full gut', sf: '' }]);
             setBlueprintUrl(null);
             setAnalysisData(null);
             setEditingProjectId(null);
         }
     }, [initialData]);
+
+    useEffect(() => {
+        if (scopeOfWork) {
+            setScopeOfWorkText(scopeOfWork);
+        }
+    }, [scopeOfWork]);
 
     useEffect(() => {
         let total = 0;
@@ -130,7 +139,7 @@ function PriceCalculator({ user, onLogout, onPageChange, initialData }) {
         }
         setSaveStatus("Saving...");
         const projectData = {
-            projectName, address, clientName, finalPrice: totalPrice,
+            projectName, address, clientName, scopeOfWork: scopeOfWorkText, finalPrice: totalPrice,
             items: items.map(({ id, ...rest }) => rest),
             blueprintUrl,
             analysisResult: analysisData,
@@ -167,13 +176,49 @@ function PriceCalculator({ user, onLogout, onPageChange, initialData }) {
         <div className="app-container">
             <div className="calculator-card">
                 <header className="header"><span className="user-info">Welcome, {user.email}!</span><button onClick={onLogout} className="logout-btn">Logout</button></header>
-                <div className="nav-buttons"><button className="nav-btn-active">Calculator</button><button onClick={() => onPageChange('records')} className="nav-btn">Records</button><button onClick={() => onPageChange('analyzer')} className="nav-btn">Blueprint Analyzer</button></div>
+                <div className="nav-buttons">
+                    <button className="nav-btn-active">Calculator</button>
+                    <button onClick={() => onPageChange('records')} className="nav-btn">Records</button>
+                    <button onClick={() => onPageChange('analyzer')} className="nav-btn">Blueprint Analyzer</button>
+                    <button onClick={() => onPageChange('voiceAnalyzer')} className="nav-btn">Voice Analyzer</button>
+                </div>
                 <h1 className="title">{editingProjectId ? 'Modify Project' : 'Pricing Calculator'}</h1>
-                <div className="project-details"><div className="input-group"><input type="text" placeholder="Project Name" value={projectName} onChange={(e) => setProjectName(e.target.value)} className="input-field" /></div><div className="input-group"><input type="text" placeholder="Address" value={address} onChange={(e) => setAddress(e.target.value)} className="input-field" /></div><div className="input-group"><input type="text" placeholder="Client Name" value={clientName} onChange={(e) => setClientName(e.target.value)} className="input-field" /></div></div>
-                <div className="items-container">{items.map((item) => (<div key={item.id} className="item-row"><div className="input-group"><select value={item.type} onChange={(e) => handleChange(item.id, 'type', e.target.value)} className="input-field">{options.map(option => (<option key={option.value} value={option.value}>{option.label}</option>))}</select></div><div className="input-group"><input type="number" placeholder="Square Feet" value={item.sf} onChange={(e) => handleChange(item.id, 'sf', e.target.value)} className="input-field" /></div>{items.length > 1 && (<button onClick={() => handleRemoveItem(item.id)} className="remove-btn">Remove</button>)}</div>))}</div>
+                <div className="project-details">
+                    <div className="input-group"><input type="text" placeholder="Project Name" value={projectName} onChange={(e) => setProjectName(e.target.value)} className="input-field" /></div>
+                    <div className="input-group"><input type="text" placeholder="Address" value={address} onChange={(e) => setAddress(e.target.value)} className="input-field" /></div>
+                    <div className="input-group"><input type="text" placeholder="Client Name" value={clientName} onChange={(e) => setClientName(e.target.value)} className="input-field" /></div>
+                    <div className="input-group">
+                        <textarea
+                            placeholder="Scope of Work (auto-filled from analyzers)"
+                            value={scopeOfWorkText}
+                            onChange={(e) => setScopeOfWorkText(e.target.value)}
+                            className="input-field"
+                            rows={4}
+                        />
+                    </div>
+                </div>
+                <div className="items-container">{items.map((item) => (
+                    <div key={item.id} className="item-row">
+                        <div className="input-group">
+                            <select value={item.type} onChange={(e) => handleChange(item.id, 'type', e.target.value)} className="input-field">
+                                {options.map(option => (<option key={option.value} value={option.value}>{option.label}</option>))}
+                            </select>
+                        </div>
+                        <div className="input-group">
+                            <input type="number" placeholder="Square Feet" value={item.sf} onChange={(e) => handleChange(item.id, 'sf', e.target.value)} className="input-field" />
+                        </div>
+                        {items.length > 1 && (<button onClick={() => handleRemoveItem(item.id)} className="remove-btn">Remove</button>)}
+                    </div>))}
+                </div>
                 <button onClick={handleAddItem} className="add-btn">+ Add Item</button>
-                <div className="total-display"><span className="total-label">Total Price:</span><span className="calculator-total-price">${totalPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
-                <div className="save-container">{saveStatus && <p className="save-status">{saveStatus}</p>}<button onClick={saveProject} className="save-btn">{editingProjectId ? 'Update Project' : 'Save Project'}</button></div>
+                <div className="total-display">
+                    <span className="total-label">Total Price:</span>
+                    <span className="calculator-total-price">${totalPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                </div>
+                <div className="save-container">
+                    {saveStatus && <p className="save-status">{saveStatus}</p>}
+                    <button onClick={saveProject} className="save-btn">{editingProjectId ? 'Update Project' : 'Save Project'}</button>
+                </div>
             </div>
         </div>
     );
@@ -210,19 +255,42 @@ function RecordsPage({ user, onLogout, onPageChange }) {
                 <div className="modal-overlay">
                     <div className="modal-content">
                         <h2>Are you sure?</h2><p>This will permanently delete the project "{projectToDelete.projectName}".</p>
-                        <div className="modal-actions"><button onClick={cancelDelete} className="btn-secondary">No</button><button onClick={confirmDelete} className="btn-danger">Yes, delete record</button></div>
+                        <div className="modal-actions">
+                            <button onClick={cancelDelete} className="btn-secondary">No</button>
+                            <button onClick={confirmDelete} className="btn-danger">Yes, delete record</button>
+                        </div>
                     </div>
                 </div>
             )}
             <div className="calculator-card">
-                <header className="header"><span className="user-info">Welcome, {user.email}!</span><button onClick={onLogout} className="logout-btn">Logout</button></header>
-                <div className="nav-buttons"><button onClick={() => onPageChange('calculator')} className="nav-btn">Calculator</button><button className="nav-btn-active">Records</button><button onClick={() => onPageChange('analyzer')} className="nav-btn">Blueprint Analyzer</button></div>
+                <header className="header">
+                    <span className="user-info">Welcome, {user.email}!</span>
+                    <button onClick={onLogout} className="logout-btn">Logout</button>
+                </header>
+                <div className="nav-buttons">
+                    <button onClick={() => onPageChange('calculator')} className="nav-btn">Calculator</button>
+                    <button className="nav-btn-active">Records</button>
+                    <button onClick={() => onPageChange('analyzer')} className="nav-btn">Blueprint Analyzer</button>
+                    <button onClick={() => onPageChange('voiceAnalyzer')} className="nav-btn">Voice Analyzer</button>
+                </div>
                 <h1 className="title">Project Records</h1>
                 <div className="records-table">
-                    <div className="records-header records-row"><span className="header-col">Project Name</span><span className="header-col">Client Name</span><span className="header-col">Address</span><span className="header-col">Final Price</span><span className="header-col"></span></div>
+                    <div className="records-header records-row">
+                        <span className="header-col">Project Name</span>
+                        <span className="header-col">Client Name</span>
+                        <span className="header-col">Address</span>
+                        <span className="header-col">Final Price</span>
+                        <span className="header-col"></span>
+                    </div>
                     {projects.map(project => (
                         <div key={project.id}>
-                            <div className="records-row" onClick={() => setExpandedRow(expandedRow === project.id ? null : project.id)}><span className="data-col">{project.projectName}</span><span className="data-col">{project.clientName}</span><span className="data-col">{project.address}</span><span className="data-col total-price">${(project.finalPrice ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span><button className="expand-btn">{expandedRow === project.id ? '▲' : '▼'}</button></div>
+                            <div className="records-row" onClick={() => setExpandedRow(expandedRow === project.id ? null : project.id)}>
+                                <span className="data-col">{project.projectName}</span>
+                                <span className="data-col">{project.clientName}</span>
+                                <span className="data-col">{project.address}</span>
+                                <span className="data-col total-price">${(project.finalPrice ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                <button className="expand-btn">{expandedRow === project.id ? '▲' : '▼'}</button>
+                            </div>
                             {expandedRow === project.id && (
                                 <div className="item-details">
                                     {project.blueprintUrl && (<div className="details-row blueprint-link-row"><span>Blueprint</span><span><a href={project.blueprintUrl} target="_blank" rel="noopener noreferrer">View Blueprint</a></span></div>)}
@@ -230,7 +298,10 @@ function RecordsPage({ user, onLogout, onPageChange }) {
                                     {project.modifiedBy && (<div className="details-row"><span>Last Modified By</span><span>{project.modifiedBy}</span></div>)}
                                     <div className="details-header details-row"><span>Item</span><span>Square Feet</span></div>
                                     {(project.items || []).map((item, index) => (<div key={index} className="details-row"><span>{item.type}</span><span>{item.sf}</span></div>))}
-                                    <div className="details-actions"><button onClick={() => onPageChange('calculator', project)} className="btn-modify">Modify</button><button onClick={() => handleDeleteClick(project)} className="btn-delete">Delete</button></div>
+                                    <div className="details-actions">
+                                        <button onClick={() => onPageChange('calculator', project)} className="btn-modify">Modify</button>
+                                        <button onClick={() => handleDeleteClick(project)} className="btn-delete">Delete</button>
+                                    </div>
                                 </div>
                             )}
                         </div>
@@ -242,7 +313,7 @@ function RecordsPage({ user, onLogout, onPageChange }) {
 }
 
 // Blueprint Analyzer Page Component
-function BlueprintAnalyzerPage({ user, onLogout, onPageChange }) {
+function BlueprintAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplete }) {
     const [blueprintFile, setBlueprintFile] = useState(null);
     const [analysisResult, setAnalysisResult] = useState(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -275,6 +346,9 @@ function BlueprintAnalyzerPage({ user, onLogout, onPageChange }) {
             if (!response.ok) throw new Error(parsed.details || 'The server returned an error.');
             setAnalysisResult(parsed.analysisResult || {});
             setUploadedBlueprintUrl(parsed.blueprintUrl || null);
+            if (parsed.analysisResult && parsed.analysisResult.ScopeOfWork) {
+                onAnalysisComplete(parsed.analysisResult.ScopeOfWork);
+            }
         } catch (err) { setError(`Analysis failed: ${err.message}`); } finally { setIsAnalyzing(false); }
     };
 
@@ -284,6 +358,7 @@ function BlueprintAnalyzerPage({ user, onLogout, onPageChange }) {
         const filteredItems = Object.fromEntries(Object.entries(remodelingItems).filter(([, value]) => value !== null));
         const dataForCalculator = {
             projectName: analysisResult["Project Name"] || '', address: analysisResult["Project Address"] || '', clientName: analysisResult["Client Name"] || '',
+            scopeOfWork: analysisResult["Scope of Work"] || '',
             items: filteredItems, blueprintUrl: uploadedBlueprintUrl, analysisResult: analysisResult
         };
         onPageChange('calculator', dataForCalculator);
@@ -292,16 +367,136 @@ function BlueprintAnalyzerPage({ user, onLogout, onPageChange }) {
     return (
         <div className="app-container">
             <div className="calculator-card">
-                <header className="header"><span className="user-info">Welcome, {user.email}!</span><button onClick={onLogout} className="logout-btn">Logout</button></header>
-                <div className="nav-buttons"><button onClick={() => onPageChange('calculator')} className="nav-btn">Calculator</button><button onClick={() => onPageChange('records')} className="nav-btn">Records</button><button className="nav-btn-active">Blueprint Analyzer</button></div>
-                <h1 className="title">Blueprint Analyzer</h1><p>Upload a blueprint (PNG, JPG, or PDF) to automatically extract square footage.</p>
-                <div className="file-upload-container"><input type="file" onChange={handleFileChange} accept="image/png, image/jpeg, application/pdf" className="input-field file-input" /><button onClick={handleAnalyze} disabled={isAnalyzing || !blueprintFile} className="add-btn">{isAnalyzing ? 'Analyzing...' : 'Analyze Blueprint'}</button></div>
+                <header className="header">
+                    <span className="user-info">Welcome, {user.email}!</span>
+                    <button onClick={onLogout} className="logout-btn">Logout</button>
+                </header>
+                <div className="nav-buttons">
+                    <button onClick={() => onPageChange('calculator')} className="nav-btn">Calculator</button>
+                    <button onClick={() => onPageChange('records')} className="nav-btn">Records</button>
+                    <button className="nav-btn-active">Blueprint Analyzer</button>
+                    <button onClick={() => onPageChange('voiceAnalyzer')} className="nav-btn">Voice Analyzer</button>
+                </div>
+                <h1 className="title">Blueprint Analyzer</h1>
+                <p>Upload a blueprint (PNG, JPG, or PDF) to automatically extract square footage.</p>
+                <div className="file-upload-container">
+                    <input type="file" onChange={handleFileChange} accept="image/png, image/jpeg, application/pdf" className="input-field file-input" />
+                    <button onClick={handleAnalyze} disabled={isAnalyzing || !blueprintFile} className="add-btn">{isAnalyzing ? 'Analyzing...' : 'Analyze Blueprint'}</button>
+                </div>
                 {error && <p className="error-message">{error}</p>}
-                {analysisResult && (<div className="analysis-results"><h3>Analysis Results:</h3><pre className="result-json">{JSON.stringify(analysisResult, null, 2)}</pre><button onClick={handleUseInCalculator} className="save-btn">Use in Calculator</button></div>)}
+                {analysisResult && (
+                    <div className="analysis-results">
+                        <h3>Analysis Results:</h3>
+                        <pre className="result-json">{JSON.stringify(analysisResult, null, 2)}</pre>
+                        <button onClick={handleUseInCalculator} className="save-btn">Use in Calculator</button>
+                    </div>
+                )}
             </div>
         </div>
     );
 }
+
+// Voice Analyzer Page Component
+function VoiceAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplete }) {
+    const [isRecording, setIsRecording] = useState(false);
+    const [mediaRecorder, setMediaRecorder] = useState(null);
+    const [audioChunks, setAudioChunks] = useState([]);
+    const [analysisResult, setAnalysisResult] = useState(null);
+    const [summary, setSummary] = useState(null);
+    const [transcript, setTranscript] = useState(null);
+    const [error, setError] = useState('');
+    const [isAnalyzing, setIsAnalyzing] = useState(false);
+
+    const startRecording = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
+            recorder.ondataavailable = (event) => {
+                setAudioChunks((prev) => [...prev, event.data]);
+            };
+            recorder.start();
+            setMediaRecorder(recorder);
+            setIsRecording(true);
+        } catch (err) {
+            setError('Could not start recording. Please ensure you have given microphone permissions.');
+        }
+    };
+
+    const stopRecording = () => {
+        mediaRecorder.stop();
+        setIsRecording(false);
+    };
+
+    const handleAnalyze = async () => {
+        if (audioChunks.length === 0) {
+            setError('No audio recorded.');
+            return;
+        }
+        setIsAnalyzing(true);
+        setError('');
+
+        const audioBlob = new Blob(audioChunks, { type: 'audio/webm;codecs=opus' });
+        const reader = new FileReader();
+        reader.readAsDataURL(audioBlob);
+        reader.onloadend = async () => {
+            const base64Audio = reader.result;
+            // IMPORTANT: Replace with your actual Cloud Function URL
+            const functionUrl = 'https://analyze-voice-recording-w47bikyqya-uc.a.run.app';
+            try {
+                const response = await fetch(functionUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ audioData: base64Audio }),
+                });
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.error || 'Analysis failed.');
+
+                setAnalysisResult(result.analysisResult);
+                setSummary(result.summary);
+                setTranscript(result.transcript);
+                if (result.analysisResult && result.analysisResult.ScopeOfWork) {
+                    onAnalysisComplete(result.analysisResult.ScopeOfWork);
+                }
+            } catch (err) {
+                setError(`Analysis failed: ${err.message}`);
+            } finally {
+                setIsAnalyzing(false);
+                setAudioChunks([]);
+            }
+        };
+    };
+
+    return (
+        <div className="app-container">
+            <div className="calculator-card">
+                <header className="header">
+                    <span className="user-info">Welcome, {user.email}!</span>
+                    <button onClick={onLogout} className="logout-btn">Logout</button>
+                </header>
+                <div className="nav-buttons">
+                    <button onClick={() => onPageChange('calculator')} className="nav-btn">Calculator</button>
+                    <button onClick={() => onPageChange('records')} className="nav-btn">Records</button>
+                    <button onClick={() => onPageChange('analyzer')} className="nav-btn">Blueprint Analyzer</button>
+                    <button className="nav-btn-active">Voice Analyzer</button>
+                </div>
+                <h1 className="title">Voice Recording & Analysis</h1>
+                <div className="voice-recorder">
+                    <button onClick={isRecording ? stopRecording : startRecording} className={`record-btn ${isRecording ? 'recording' : ''}`}>
+                        {isRecording ? 'Stop Recording' : 'Start Recording'}
+                    </button>
+                    <button onClick={handleAnalyze} disabled={isAnalyzing || isRecording || audioChunks.length === 0} className="add-btn">
+                        {isAnalyzing ? 'Analyzing...' : 'Analyze Recording'}
+                    </button>
+                </div>
+                {error && <p className="error-message">{error}</p>}
+                {transcript && <div className="analysis-results"><h3>Transcript:</h3><p>{transcript}</p></div>}
+                {analysisResult && <div className="analysis-results"><h3>Analysis Results:</h3><pre className="result-json">{JSON.stringify(analysisResult, null, 2)}</pre></div>}
+                {summary && <div className="analysis-results"><h3>Summary:</h3><p>{summary}</p></div>}
+            </div>
+        </div>
+    );
+}
+
 
 // Auth Page Component
 function AuthPage() {
@@ -338,7 +533,10 @@ function AuthPage() {
                     {error && <p className="error-message">{error}</p>}
                     <button type="submit" className="auth-btn">{isSignUp ? 'Sign Up' : 'Login'}</button>
                 </form>
-                <div className="auth-links"><button className="link-btn" onClick={() => setIsSignUp(!isSignUp)}>{isSignUp ? 'Already have an account? Login' : 'Need an account? Sign Up'}</button>{!isSignUp && (<button className="link-btn" onClick={handlePasswordReset}>Forgot Password?</button>)}</div>
+                <div className="auth-links">
+                    <button className="link-btn" onClick={() => setIsSignUp(!isSignUp)}>{isSignUp ? 'Already have an account? Login' : 'Need an account? Sign Up'}</button>
+                    {!isSignUp && (<button className="link-btn" onClick={handlePasswordReset}>Forgot Password?</button>)}
+                </div>
             </div>
         </div>
     );
@@ -350,6 +548,7 @@ export default function App() {
     const [loading, setLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState('calculator');
     const [dataForCalculator, setDataForCalculator] = useState(null);
+    const [scopeOfWork, setScopeOfWork] = useState('');
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -372,10 +571,11 @@ export default function App() {
 
     const renderPage = () => {
         switch (currentPage) {
-            case 'calculator': return <PriceCalculator user={user} onLogout={handleLogout} onPageChange={handlePageChange} initialData={dataForCalculator} />;
+            case 'calculator': return <PriceCalculator user={user} onLogout={handleLogout} onPageChange={handlePageChange} initialData={dataForCalculator} scopeOfWork={scopeOfWork} />;
             case 'records': return <RecordsPage user={user} onLogout={handleLogout} onPageChange={handlePageChange} />;
-            case 'analyzer': return <BlueprintAnalyzerPage user={user} onLogout={handleLogout} onPageChange={handlePageChange} />;
-            default: return <PriceCalculator user={user} onLogout={handleLogout} onPageChange={handlePageChange} initialData={dataForCalculator} />;
+            case 'analyzer': return <BlueprintAnalyzerPage user={user} onLogout={handleLogout} onPageChange={handlePageChange} onAnalysisComplete={setScopeOfWork} />;
+            case 'voiceAnalyzer': return <VoiceAnalyzerPage user={user} onLogout={handleLogout} onPageChange={handlePageChange} onAnalysisComplete={setScopeOfWork} />;
+            default: return <PriceCalculator user={user} onLogout={handleLogout} onPageChange={handlePageChange} initialData={dataForCalculator} scopeOfWork={scopeOfWork} />;
         }
     };
 

@@ -1,55 +1,46 @@
-import uuid
-import base64, json, os, fitz
-import firebase_admin
-from firebase_admin import firestore
-from firebase_functions import https_fn
-from google.cloud import storage
-from google import genai
-from google.genai import types
+# main.py
 
-# ---- Allowed origins (exact) ----
+import uuid
+import base64
+import json
+import os
+import fitz  # PyMuPDF
+import firebase_admin
+from firebase_functions import https_fn, options
+
+# --- Google Cloud Client Libraries ---
+from google.cloud import storage
+from google.cloud.speech_v2 import SpeechClient
+from google.cloud.speech_v2.types import cloud_speech
+import vertexai
+from vertexai.generative_models import GenerativeModel, GenerationConfig, Part
+
+# --- Global Configuration & CORS ---
+# Set the region for all functions in this file
+options.set_global_options(region="us-central1")
+
 ALLOWED_ORIGINS = {
     "http://localhost:3000",
     "https://petershumuen.github.io",
 }
-
-# If you want to accept any *.github.io page (project/user pages), keep this True.
 ALLOW_GITHUB_IO_WILDCARD = True
 
-def _normalize_origin(o: str | None) -> str | None:
-    if not o:
-        return None
-    # Lowercase, strip trailing slash
-    return o.strip().lower().rstrip("/")
-
 def _is_allowed_origin(origin: str | None) -> bool:
-    o = _normalize_origin(origin)
-    if not o:
+    if not origin:
         return False
-    if o in { _normalize_origin(x) for x in ALLOWED_ORIGINS }:
+    o = origin.strip().lower().rstrip("/")
+    if o in {o.strip().lower().rstrip("/") for o in ALLOWED_ORIGINS}:
         return True
     if ALLOW_GITHUB_IO_WILDCARD and o.endswith(".github.io"):
         return True
     return False
 
-def _cors_headers_for(origin: str | None, *, credentials: bool = False):
-    """
-    Return CORS headers. If origin allowed -> echo it.
-    Otherwise, you can choose to be permissive and echo the origin, or send '*'.
-    """
+def _cors_headers_for(origin: str | None):
     headers = {"Vary": "Origin"}
     if _is_allowed_origin(origin):
         headers["Access-Control-Allow-Origin"] = origin
-        if credentials:
-            headers["Access-Control-Allow-Credentials"] = "true"
     else:
-        # --- Option A (more permissive): reflect whatever origin we got (no credentials) ---
-        if origin:
-            headers["Access-Control-Allow-Origin"] = origin
-        else:
-            headers["Access-Control-Allow-Origin"] = "*"
-        # --- Option B (strict): uncomment the next line and remove the two lines above
-        # headers["Access-Control-Allow-Origin"] = "null"
+        headers["Access-Control-Allow-Origin"] = "*" # More permissive for simplicity
     return headers
 
 def _cors_preflight_headers(origin: str | None):
@@ -61,88 +52,97 @@ def _cors_preflight_headers(origin: str | None):
     })
     return h
 
-# ---- Firebase Admin ----
-firebase_admin.initialize_app()
+# --- Lazy-Initialized Clients ---
+# We declare clients globally but only initialize them on the first function call.
+# This prevents deployment timeouts and is the recommended best practice.
+PROJECT_ID = os.environ.get("GCP_PROJECT")
+LOCATION = "us-central1"
 
-# ---- GenAI client (Vertex backend) ----
-_GENAI_CLIENT = None
-def _genai_client():
-    global _GENAI_CLIENT
-    if not _genai_client:
-        pass
-    return None
-def _genai_client():
-    global _GENAI_CLIENT
-    if not _GENAI_CLIENT:
-        cfg = json.loads(os.environ.get("FIREBASE_CONFIG", "{}"))
-        project = cfg.get("projectId") or os.environ.get("GCP_PROJECT") or os.environ.get("GOOGLE_CLOUD_PROJECT")
-        loc = os.environ.get("VERTEX_LOCATION", "us-central1")
-        _GENAI_CLIENT = genai.Client(vertexai=True, project=project, location=loc)
-    return _GENAI_CLIENT
+speech_client = None
+gemini_model = None
+storage_client = None
+vertex_ai_initialized = False
 
-def _get_bucket():
+def _initialize_clients():
+    """Initializes all API clients lazily."""
+    global speech_client, gemini_model, storage_client, vertex_ai_initialized
+    
+    if not vertex_ai_initialized:
+        vertexai.init(project=PROJECT_ID, location=LOCATION)
+        vertex_ai_initialized = True
+    
+    if storage_client is None:
+        storage_client = storage.Client()
+
+    if speech_client is None:
+        speech_client = SpeechClient()
+
+    if gemini_model is None:
+        gemini_model = GenerativeModel("gemini-2.5-pro") 
+
+# --- Helper Functions ---
+def _get_bucket_name():
     cfg = json.loads(os.environ.get("FIREBASE_CONFIG", "{}"))
     bucket = cfg.get("storageBucket")
     if not bucket:
-        raise RuntimeError("storageBucket missing in FIREBASE_CONFIG")
+        raise RuntimeError("storageBucket missing from FIREBASE_CONFIG")
     return bucket
 
 def _decode_data_uri(data_uri):
     if not data_uri or "," not in data_uri:
         raise ValueError("Invalid data URI")
-    header, b64 = data_uri.split(",", 1)
-    mt = header.split(";")[0][5:] if header.startswith("data:") else ""
-    return base64.b64decode(b64), (mt or "application/octet-stream")
+    header, b64_data = data_uri.split(",", 1)
+    mime_type = header.split(";")[0][5:] if header.startswith("data:") else "application/octet-stream"
+    return base64.b64decode(b64_data), mime_type
+
+# --- Cloud Functions ---
 
 @https_fn.on_request(memory=2048)
-def analyze_blueprint(req):
+def analyze_blueprint(req: https_fn.Request) -> https_fn.Response:
     origin = req.headers.get("Origin")
-    print(f"[CORS] Origin received: {origin}")
 
     if req.method == "OPTIONS":
         return https_fn.Response("", status=204, headers=_cors_preflight_headers(origin))
+    
     if req.method != "POST":
-        return https_fn.Response("Method not allowed", 405, headers=_cors_headers_for(origin))
+        return https_fn.Response("Method Not Allowed", status=405, headers=_cors_headers_for(origin))
 
     try:
+        _initialize_clients() # Ensure clients are ready
+
         data = req.get_json(silent=True) or {}
-        if not all(k in data for k in ["fileData", "userId"]):
-            return https_fn.Response("Missing fields", 400, headers=_cors_headers_for(origin))
+        if "fileData" not in data or "userId" not in data:
+            return https_fn.Response("Missing fields", status=400, headers=_cors_headers_for(origin))
 
-        raw, mt = _decode_data_uri(data["fileData"])
-        if mt.lower() == "application/pdf":
-            pdf = fitz.open(stream=raw, filetype="pdf")
-            pix = pdf.load_page(0).get_pixmap(dpi=300)
-            img_bytes = pix.tobytes("png")
-            pdf.close()
-            mt_out = "image/png"
-        else:
-            img_bytes = raw
-            mt_out = "image/png" if mt.lower().startswith("image/") else mt
+        raw_bytes, mime_type = _decode_data_uri(data["fileData"])
+        image_bytes = raw_bytes
+        
+        if mime_type.lower() == "application/pdf":
+            with fitz.open(stream=raw_bytes, filetype="pdf") as doc:
+                pix = doc.load_page(0).get_pixmap(dpi=300)
+                image_bytes = pix.tobytes("png")
+                mime_type = "image/png"
 
-        bucket_name = _get_bucket()
-        storage_client = storage.Client()
+        bucket_name = _get_bucket_name()
         bucket = storage_client.bucket(bucket_name)
-        unique_id = str(uuid.uuid4())
-        fname = f"blueprints/{data['userId']}/{unique_id}.png"
+        fname = f"blueprints/{data['userId']}/{uuid.uuid4()}.png"
         blob = bucket.blob(fname)
-        blob.upload_from_string(img_bytes, content_type=mt_out)
-        blueprint_url = blob.public_url
+        blob.upload_from_string(image_bytes, content_type=mime_type)
 
-        client_ai = _genai_client()
         prompt = """
-        Analyze the provided image, focusing ONLY on the section labeled "PROJECT DATA". Your task is to extract specific details and format them into a precise JSON structure.
+        Your primary goal is to analyze the entire provided blueprint to generate a clear "Scope of Work". After that, fill in any other details you can find. Your task is to extract all information and format it into a precise JSON structure.
 
         Follow these instructions carefully for each key:
 
         1.  **Top-Level Keys:**
-            * `Project Name`: Use the first line from the "PROJECT DESCRIPTION" field.
-            * `Project Description`: Use the complete, multi-line text from the "PROJECT DESCRIPTION" field.
-            * `Project Address`: Get the value from the "PROJECT ADDRESS" field.
-            * `Client Name`: Get the value from the "OWNER" field.
-            * `Zone District`: Get the value from the "ZONE DISTRICT" field.
-            * `Type of Construction`: Get the value from the "TYPE OF CONSTRUCTION" field.
-            * `Occupancy Group`: Get the value from the "OCCUPANCY GROUP" field.
+            * `Project Name`: **Find the project's title, often the first line of the project description.**
+            * `Project Description`: **Find the full, multi-line description of the project.**
+            * `Project Address`: **Find the physical address of the job site. Look for labels like "PROJECT ADDRESS", "SITE ADDRESS", or "JOBSITE LOCATION".**
+            * `Client Name`: **Find the name of the property owner or client. Look for labels like "OWNER", "CLIENT", "APPLICANT", or "PREPARED FOR".**
+            * `Zone District`: **Find the zoning code for the property. Look for labels like "ZONE DISTRICT", "ZONING", or "PARCEL ZONING".**
+            * `Type of Construction`: **Find the construction classification. Look for labels like "TYPE OF CONSTRUCTION" or "CONSTRUCTION TYPE".**
+            * `Occupancy Group`: **Find the occupancy classification code. Look for labels like "OCCUPANCY GROUP", "OCCUPANCY", or "GROUP".**
+            * `Scope of Work`: This is the most important field. Generate a homeowner-friendly paragraph summarizing the project based on all available information on the blueprint, such as the project description, address, and any visible labels for rooms or areas. Even if specific measurements for rooms are not found, provide a descriptive summary of the intended work.
 
         2.  **Nested "Remodeling place and size" Object:**
             - `Full gut`: Do not fill in this unless it says Full gut or whole house remodeling on the plan.
@@ -164,6 +164,7 @@ def analyze_blueprint(req):
         "Project Description": "REMODEL EXISTING 1-STORY HOUSE\n- REMODEL 1244.5 SQ.FT. OF LIVING AREA",
         "Project Address": "1975 ALMA STREET, PALO ALTO",
         "Client Name": "TIFFANY TSAO",
+        "Scope of Work": "This project for Tiffany Tsao involves the remodel of the 1,244.5 sq. ft. living area in the existing single-story house located at 1975 Alma Street, Palo Alto.",
         "Remodeling place and size": {
             "Full gut": null,
             "Additional building/ new construction": null,
@@ -181,30 +182,95 @@ def analyze_blueprint(req):
         "Occupancy Group": "R-3 / U"
         }
         """
+        
+        blueprint_image = Part.from_data(data=image_bytes, mime_type=mime_type)
+        response = gemini_model.generate_content([prompt, blueprint_image])
+        
+        raw_text = response.text.strip().replace("```json", "").replace("```", "")
+        analysis = json.loads(raw_text)
 
-        resp = client_ai.models.generate_content(
-            model="gemini-2.5-pro",
-            contents=[prompt, types.Part.from_bytes(data=img_bytes, mime_type=mt_out)]
-        )
-        print(f"RAW GEMINI RESPONSE ----> {resp.text}")
-        txt = (resp.text or "").strip().replace("```json", "").replace("```", "")
-        try:
-            analysis = json.loads(txt)
-        except Exception:
-            analysis = {"error": "parseFailure"}
-
-        return https_fn.Response(
-            json.dumps({"analysisResult": analysis, "blueprintUrl": blueprint_url}),
-            200,
-            mimetype="application/json",
-            headers=_cors_headers_for(origin),
-        )
+        response_data = {"analysisResult": analysis, "blueprintUrl": blob.public_url}
+        return https_fn.Response(json.dumps(response_data), status=200, mimetype="application/json", headers=_cors_headers_for(origin))
 
     except Exception as e:
-        print("Error:", e)
-        return https_fn.Response(
-            json.dumps({"error": str(e)}),
-            500,
-            mimetype="application/json",
-            headers=_cors_headers_for(origin),
+        print(f"Error in analyze_blueprint: {e}")
+        return https_fn.Response(json.dumps({"error": str(e)}), status=500, mimetype="application/json", headers=_cors_headers_for(origin))
+
+
+@https_fn.on_request(memory=2048)
+def analyze_voice_recording(req: https_fn.Request) -> https_fn.Response:
+    origin = req.headers.get("Origin")
+
+    if req.method == "OPTIONS":
+        return https_fn.Response("", status=204, headers=_cors_preflight_headers(origin))
+
+    if req.method != "POST":
+        return https_fn.Response("Method Not Allowed", status=405, headers=_cors_headers_for(origin))
+
+    try:
+        _initialize_clients() # Ensure clients are ready
+
+        if not req.files or "audio_file" not in req.files:
+            return https_fn.Response("Bad Request: 'audio_file' not found", status=400, headers=_cors_headers_for(origin))
+        
+        audio_file = req.files["audio_file"]
+        audio_content = audio_file.read()
+        if not audio_content:
+            return https_fn.Response("Bad Request: Audio file is empty", status=400, headers=_cors_headers_for(origin))
+            
+        recognizer_path = f"projects/{PROJECT_ID}/locations/global/recognizers/_"
+        recognition_config = cloud_speech.RecognitionConfig(auto_decoding_config={}, language_codes=["en-US"], model="chirp")
+        request = cloud_speech.RecognizeRequest(recognizer=recognizer_path, config=recognition_config, content=audio_content)
+        
+        transcription_response = speech_client.recognize(request=request)
+        if not transcription_response.results or not transcription_response.results[0].alternatives:
+             raise ValueError("Transcription failed or returned empty.")
+        transcript = transcription_response.results[0].alternatives[0].transcript
+
+        prompt = f"""
+        Analyze the following transcribed text from a client meeting. Your task is to first extract key project details into a JSON format. Second, provide a detailed summary of any other remodeling-related topics that were discussed.
+
+        **Instructions for JSON Output:**
+        - Fill in each key based on the information provided in the conversation.
+        - **`Scope of Work`: Create a shorter version summary of the main project goals discussed. This should be a concise version of the main summary below.**
+
+        **JSON Output format:**
+        {{
+            "Project Name": "...",
+            "Project Description": "...",
+            "Project Address": "...",
+            "Client Name": "...",
+            **"Scope of Work": "...",**
+            "Remodeling place and size": {{
+                "Full gut": null,
+                "Additional building/ new construction": null,
+                "Structural Wall removal": null,
+                "2nd Structural Wall removal": null,
+                "Kitchen": null,
+                "Bathroom": null,
+                "Living room": null,
+                "Garage": null,
+                "Bedroom": null,
+                "Landscape": null
+            }},
+            "Zone District": "...",
+            "Type of Construction": "...",
+            "Occupancy Group": "..."
+        }}
+
+        **Summary of other remodeling topics:**
+        - ...
+        """
+
+        gemini_response = gemini_model.generate_content(
+            prompt,
+            generation_config=GenerationConfig(response_mime_type="application/json")
         )
+        analysis_json = json.loads(gemini_response.text)
+
+        response_data = {"transcript": transcript, "analysis": analysis_json}
+        return https_fn.Response(json.dumps(response_data, indent=2), status=200, mimetype="application/json", headers=_cors_headers_for(origin))
+
+    except Exception as e:
+        print(f"Error in analyze_voice_recording: {e}")
+        return https_fn.Response(json.dumps({"error": str(e)}), status=500, mimetype="application/json", headers=_cors_headers_for(origin))
