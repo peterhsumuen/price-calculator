@@ -305,6 +305,7 @@ function RecordsPage({ user, onLogout, onPageChange }) {
                                     {project.blueprintUrl && (<div className="details-row blueprint-link-row"><span>Blueprint</span><span><a href={project.blueprintUrl} target="_blank" rel="noopener noreferrer">View Blueprint</a></span></div>)}
                                     {project.userName && (<div className="details-row"><span>User Created</span><span>{project.userName}</span></div>)}
                                     {project.modifiedBy && (<div className="details-row"><span>Last Modified By</span><span>{project.modifiedBy}</span></div>)}
+                                    {project.scopeOfWork && (<div className="details-row scope-of-work-row"><span>Scope of Work</span><span>{project.scopeOfWork}</span></div>)}
                                     <div className="details-header details-row"><span>Item</span><span>Square Feet</span></div>
                                     {(project.items || []).map((item, index) => (<div key={index} className="details-row"><span>{item.type}</span><span>{item.sf}</span></div>))}
                                     <div className="details-actions">
