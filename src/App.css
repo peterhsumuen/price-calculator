@@ -500,3 +500,14 @@ body {
   white-space: pre-wrap;
   word-wrap: break-word;
 }
+
+/* Add this to your App.css file */
+
+.input-label {
+  display: block; /* Ensures the label is on its own line */
+  text-align: left; /* Aligns the text to the left */
+  font-size: 14px; /* Sets the font size */
+  font-weight: 600; /* Makes the text bold */
+  color: #4a5568;  /* A nice dark gray color for the text */
+  margin-bottom: 6px; /* Adds a little space between the label and the input box */
+}

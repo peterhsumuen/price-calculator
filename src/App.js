@@ -184,12 +184,21 @@ function PriceCalculator({ user, onLogout, onPageChange, initialData, scopeOfWor
                 </div>
                 <h1 className="title">{editingProjectId ? 'Modify Project' : 'Pricing Calculator'}</h1>
                 <div className="project-details">
-                    <div className="input-group"><input type="text" placeholder="Project Name" value={projectName} onChange={(e) => setProjectName(e.target.value)} className="input-field" /></div>
-                    <div className="input-group"><input type="text" placeholder="Address" value={address} onChange={(e) => setAddress(e.target.value)} className="input-field" /></div>
-                    <div className="input-group"><input type="text" placeholder="Client Name" value={clientName} onChange={(e) => setClientName(e.target.value)} className="input-field" /></div>
                     <div className="input-group">
+                        <label className="input-label">Project Name</label>
+                        <input type="text" value={projectName} onChange={(e) => setProjectName(e.target.value)} className="input-field" />
+                    </div>
+                    <div className="input-group">
+                        <label className="input-label">Address</label>
+                        <input type="text" value={address} onChange={(e) => setAddress(e.target.value)} className="input-field" />
+                    </div>
+                    <div className="input-group">
+                        <label className="input-label">Client Name</label>
+                        <input type="text" value={clientName} onChange={(e) => setClientName(e.target.value)} className="input-field" />
+                    </div>
+                    <div className="input-group">
+                        <label className="input-label">Scope of Work</label>
                         <textarea
-                            placeholder="Scope of Work (auto-filled from analyzers)"
                             value={scopeOfWorkText}
                             onChange={(e) => setScopeOfWorkText(e.target.value)}
                             className="input-field"
