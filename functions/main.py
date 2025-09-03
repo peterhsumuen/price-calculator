@@ -95,7 +95,7 @@ def _decode_data_uri(data_uri):
 
 # --- Cloud Functions ---
 
-@https_fn.on_request(memory=2048)
+@https_fn.on_request(memory=4096)
 def analyze_blueprint(req: https_fn.Request) -> https_fn.Response:
     origin = req.headers.get("Origin")
 
@@ -108,27 +108,9 @@ def analyze_blueprint(req: https_fn.Request) -> https_fn.Response:
     try:
         _initialize_clients() # Ensure clients are ready
 
-        data = req.get_json(silent=True) or {}
-        if "fileData" not in data or "userId" not in data:
-            return https_fn.Response("Missing fields", status=400, headers=_cors_headers_for(origin))
-
-        raw_bytes, mime_type = _decode_data_uri(data["fileData"])
-        image_bytes = raw_bytes
-        
-        if mime_type.lower() == "application/pdf":
-            with fitz.open(stream=raw_bytes, filetype="pdf") as doc:
-                pix = doc.load_page(0).get_pixmap(dpi=300)
-                image_bytes = pix.tobytes("png")
-                mime_type = "image/png"
-
-        bucket_name = _get_bucket_name()
-        bucket = storage_client.bucket(bucket_name)
-        fname = f"blueprints/{data['userId']}/{uuid.uuid4()}.png"
-        blob = bucket.blob(fname)
-        blob.upload_from_string(image_bytes, content_type=mime_type)
-
+        # CORRECT: Moved prompt definition to the top so it exists before being used.
         prompt = """
-        Your primary goal is to analyze the entire provided blueprint to generate a clear "Scope of Work". After that, fill in any other details you can find. Your task is to extract all information and format it into a precise JSON structure.
+        Your primary goal is to analyze all provided blueprint pages to generate a clear "Scope of Work". After that, fill in any other details you can find. Your task is to extract all information and format it into a precise JSON structure.
 
         Follow these instructions carefully for each key:
 
@@ -140,49 +122,76 @@ def analyze_blueprint(req: https_fn.Request) -> https_fn.Response:
             * `Zone District`: **Find the zoning code for the property. Look for labels like "ZONE DISTRICT", "ZONING", or "PARCEL ZONING".**
             * `Type of Construction`: **Find the construction classification. Look for labels like "TYPE OF CONSTRUCTION" or "CONSTRUCTION TYPE".**
             * `Occupancy Group`: **Find the occupancy classification code. Look for labels like "OCCUPANCY GROUP", "OCCUPANCY", or "GROUP".**
-            * `Scope of Work`: This is the most important field. Generate a homeowner-friendly paragraph summarizing the project based on all available information on the blueprint, such as the project description, address, and any visible labels for rooms or areas. Even if specific measurements for rooms are not found, provide a descriptive summary of the intended work.
-
+            * `Scope of Work`: **Act as a project manager writing a formal Scope of Work for a homeowner. Using all provided blueprint pages, create a thorough, step-by-step description of the entire project. Structure the output by area or room. For each location, use clear headings (e.g., Kitchen Remodel, Second Floor Addition, Exterior Work) and detail the following in plain language:
+                - Demolition: Clearly state what existing structures will be removed.
+                - Construction & Framing: Describe all new construction.
+                - Mechanical, Electrical & Plumbing (MEP): Detail any new installations or relocations shown on the plans.
+                - Finishes & Fixtures: List all new finishes and permanent fixtures.
+                - Ensure the final text is a comprehensive narrative that walks the homeowner through the entire construction journey from start to finish.**
+                
         2.  **Nested "Remodeling place and size" Object:**
             - `Full gut`: Do not fill in this unless it says Full gut or whole house remodeling on the plan.
-            - `Additional building/ new construction`: Look for areas on the plan explicitly marked as "ADDITION" or "NEW". If found, calculate their total square footage.
-            - `Structural Wall removal`: Look for notes or dashed lines indicating significant wall demolition. If found, use the same value as `Full gut`.
-            - `Kitchen`: Find the area labeled "KITCHEN" and use its calculated size.
-            - `Bathroom`: Find the area labeled "BATH" and use its calculated size.
-            - `Living room`: Find the area labeled "LIVING ROOM" or a combined "LIVING/DINING" space and use its size.
+            - `Additional building/ new construction`: Look for areas marked "ADDITION" or "NEW". Calculate their total square footage.
+            - `Structural Wall removal`: Look for notes indicating wall demolition. If found, use the same value as `Full gut`.
+            - `Kitchen`: Find the area labeled "KITCHEN" and use its size.
+            - `Bathroom`: Find the area labeled "BATH" and use its size.
+            - `Living room`: Find the area labeled "LIVING ROOM" or "LIVING/DINING" and use its size.
             - `Garage`: Find the area labeled "GARAGE" and use its size.
             - `Bedroom`: Find any area labeled "BEDROOM" and use its size. 
-            - `Landscape`: Look for any specific landscaping plans or notes.
-            - If there are multiple, add all sizes together. For example: A bedroom is 50 SF, another is 30 SF, return a bedroom with 80 SF.
+            - `Landscape`: Look for landscaping plans.
+            - If there are multiple rooms of the same type, add their sizes together.
 
-        Your final output must be ONLY a single, valid JSON object matching the structure below. Do not add any other text or explanations.
+        Your final output must be ONLY a single, valid JSON object. Do not add any other text or explanations.
 
         ```json
         {
-        "Project Name": "REMODEL EXISTING 1-STORY HOUSE",
-        "Project Description": "REMODEL EXISTING 1-STORY HOUSE\n- REMODEL 1244.5 SQ.FT. OF LIVING AREA",
-        "Project Address": "1975 ALMA STREET, PALO ALTO",
-        "Client Name": "TIFFANY TSAO",
-        "Scope of Work": "This project for Tiffany Tsao involves the remodel of the 1,244.5 sq. ft. living area in the existing single-story house located at 1975 Alma Street, Palo Alto.",
-        "Remodeling place and size": {
-            "Full gut": null,
-            "Additional building/ new construction": null,
-            "Structural Wall removal": null,
-            "2nd Structural Wall removal": null,
-            "Kitchen": null,
-            "Bathroom": null,
-            "Living room": 1244.5,
-            "Garage": null,
-            "Bedroom": null,
-            "Landscape": null
-        },
-        "Zone District": "RM-20",
-        "Type of Construction": "V-B, NO SPRINKLER",
-        "Occupancy Group": "R-3 / U"
+          "Project Name": "REMODEL EXISTING 1-STORY HOUSE",
+          "Project Description": "REMODEL EXISTING 1-STORY HOUSE\n- REMODEL 1244.5 SQ.FT. OF LIVING AREA",
+          "Project Address": "1975 ALMA STREET, PALO ALTO",
+          "Client Name": "TIFFANY TSAO",
+          "Scope of Work": "This project involves the remodel of the 1,244.5 sq. ft. living area...",
+          "Remodeling place and size": { "Living room": 1244.5 },
+          "Zone District": "RM-20",
+          "Type of Construction": "V-B, NO SPRINKLER",
+          "Occupancy Group": "R-3 / U"
         }
+        ```
         """
+
+        data = req.get_json(silent=True) or {}
+        if "fileData" not in data or "userId" not in data:
+            return https_fn.Response("Missing fields", status=400, headers=_cors_headers_for(origin))
+
+        raw_bytes, mime_type = _decode_data_uri(data["fileData"])
         
-        blueprint_image = Part.from_data(data=image_bytes, mime_type=mime_type)
-        response = gemini_model.generate_content([prompt, blueprint_image])
+        content_for_gemini = [prompt]
+        first_page_bytes = None # To store the first page for upload
+
+        if mime_type.lower() == "application/pdf":
+            with fitz.open(stream=raw_bytes, filetype="pdf") as doc:
+                for page_num in range(doc.page_count):
+                    page = doc.load_page(page_num)
+                    pix = page.get_pixmap(dpi=300)
+                    image_bytes = pix.tobytes("png")
+                    if page_num == 0:
+                        first_page_bytes = image_bytes # Save first page
+                    content_for_gemini.append(Part.from_data(data=image_bytes, mime_type="image/png"))
+        else:
+            first_page_bytes = raw_bytes # It's just a single image
+            content_for_gemini.append(Part.from_data(data=raw_bytes, mime_type=mime_type))
+
+        if not first_page_bytes:
+             raise ValueError("No image data could be processed for upload.")
+
+        bucket_name = _get_bucket_name()
+        bucket = storage_client.bucket(bucket_name)
+        fname = f"blueprints/{data['userId']}/{uuid.uuid4()}.png"
+        blob = bucket.blob(fname)
+        # CORRECT: Upload only the first page as a thumbnail.
+        blob.upload_from_string(first_page_bytes, content_type="image/png")
+
+        # CORRECT: Send the full list of content (prompt + all images) to Gemini.
+        response = gemini_model.generate_content(content_for_gemini)
         
         raw_text = response.text.strip().replace("```json", "").replace("```", "")
         analysis = json.loads(raw_text)
@@ -193,6 +202,7 @@ def analyze_blueprint(req: https_fn.Request) -> https_fn.Response:
     except Exception as e:
         print(f"Error in analyze_blueprint: {e}")
         return https_fn.Response(json.dumps({"error": str(e)}), status=500, mimetype="application/json", headers=_cors_headers_for(origin))
+
 
 
 @https_fn.on_request(memory=2048)
