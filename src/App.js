@@ -314,7 +314,7 @@ function RecordsPage({ user, onLogout, onPageChange }) {
                                                 {project.blueprintUrl && (<div><strong>Blueprint:</strong> <a href={project.blueprintUrl} target="_blank" rel="noopener noreferrer" className="link link-primary">View Blueprint</a></div>)}
                                                 {project.userName && (<div><strong>User Created:</strong> {project.userName}</div>)}
                                                 {project.modifiedBy && (<div><strong>Last Modified By:</strong> {project.modifiedBy}</div>)}
-                                                {project.scopeOfWork && (<div><strong>Scope of Work:</strong> {project.scopeOfWork}</div>)}
+                                                {project.scopeOfWork && (<div><strong>Scope of Work:</strong> <div className="whitespace-pre-line">{project.scopeOfWork}</div></div>)}
                                                 <div className="font-bold mt-2">Items:</div>
                                                 <ul>
                                                     {(project.items || []).map((item, index) => (<li key={index}>{item.type}: {item.sf} sq ft</li>))}
