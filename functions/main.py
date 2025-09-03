@@ -1,5 +1,3 @@
-# main.py
-
 import uuid
 import base64
 import json
