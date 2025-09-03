@@ -446,34 +446,35 @@ function VoiceAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplete })
         setError('');
 
         const audioBlob = new Blob(audioChunks, { type: 'audio/webm;codecs=opus' });
-        const reader = new FileReader();
-        reader.readAsDataURL(audioBlob);
-        reader.onloadend = async () => {
-            const base64Audio = reader.result;
-            // IMPORTANT: Replace with your actual Cloud Function URL
-            const functionUrl = 'https://analyze-voice-recording-w47bikyqya-uc.a.run.app';
-            try {
-                const response = await fetch(functionUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ audioData: base64Audio }),
-                });
-                const result = await response.json();
-                if (!response.ok) throw new Error(result.error || 'Analysis failed.');
+        const formData = new FormData();
+        formData.append('audio_file', audioBlob, 'recording.webm');
 
-                setAnalysisResult(result.analysisResult);
-                setSummary(result.summary);
-                setTranscript(result.transcript);
-                if (result.analysisResult && result.analysisResult.ScopeOfWork) {
-                    onAnalysisComplete(result.analysisResult.ScopeOfWork);
-                }
-            } catch (err) {
-                setError(`Analysis failed: ${err.message}`);
-            } finally {
-                setIsAnalyzing(false);
-                setAudioChunks([]);
+        // IMPORTANT: Replace with your actual Cloud Function URL
+        const functionUrl = 'https://analyze-voice-recording-w47bikyqya-uc.a.run.app';
+
+        try {
+            // Note: We no longer set the 'Content-Type' header.
+            // The browser will automatically set it to 'multipart/form-data'.
+            const response = await fetch(functionUrl, {
+                method: 'POST',
+                body: formData,
+            });
+
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error || 'Analysis failed.');
+
+            setAnalysisResult(result.analysis); // Corrected to match the python return
+            setTranscript(result.transcript); // Corrected to match the python return
+            if (result.analysis && result.analysis.ScopeOfWork) {
+                onAnalysisComplete(result.analysis.ScopeOfWork);
             }
-        };
+
+        } catch (err) {
+            setError(`Analysis failed: ${err.message}`);
+        } finally {
+            setIsAnalyzing(false);
+            setAudioChunks([]);
+        }
     };
 
     return (
