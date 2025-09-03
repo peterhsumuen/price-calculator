@@ -446,35 +446,42 @@ function VoiceAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplete })
         setError('');
 
         const audioBlob = new Blob(audioChunks, { type: 'audio/webm;codecs=opus' });
-        const formData = new FormData();
-        formData.append('audio_file', audioBlob, 'recording.webm');
+        const reader = new FileReader();
+        reader.readAsDataURL(audioBlob);
+        reader.onloadend = async () => {
+            const base64Audio = reader.result;
+            // IMPORTANT: Replace with your actual Cloud Function URL
+            const functionUrl = 'https://analyze-voice-recording-w47bikyqya-uc.a.run.app';
+            try {
+                const response = await fetch(functionUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ audioData: base64Audio }),
+                });
 
-        // IMPORTANT: Replace with your actual Cloud Function URL
-        const functionUrl = 'https://analyze-voice-recording-w47bikyqya-uc.a.run.app';
+                const result = await response.json();
+                if (!response.ok) {
+                    // Use the error message from the JSON response
+                    throw new Error(result.error || 'Analysis failed due to a server error.');
+                }
+                
+                // Note the change here to match the new Python response format
+                setAnalysisResult(result.analysis); 
+                // The summary is now part of the `analysis` object from Gemini
+                setSummary(result.analysis['Summary of other remodeling topics'] || null);
+                setTranscript(result.transcript);
+                
+                if (result.analysis && result.analysis.ScopeOfWork) {
+                    onAnalysisComplete(result.analysis.ScopeOfWork);
+                }
 
-        try {
-            // Note: We no longer set the 'Content-Type' header.
-            // The browser will automatically set it to 'multipart/form-data'.
-            const response = await fetch(functionUrl, {
-                method: 'POST',
-                body: formData,
-            });
-
-            const result = await response.json();
-            if (!response.ok) throw new Error(result.error || 'Analysis failed.');
-
-            setAnalysisResult(result.analysis); // Corrected to match the python return
-            setTranscript(result.transcript); // Corrected to match the python return
-            if (result.analysis && result.analysis.ScopeOfWork) {
-                onAnalysisComplete(result.analysis.ScopeOfWork);
+            } catch (err) {
+                setError(`Analysis failed: ${err.message}`);
+            } finally {
+                setIsAnalyzing(false);
+                setAudioChunks([]);
             }
-
-        } catch (err) {
-            setError(`Analysis failed: ${err.message}`);
-        } finally {
-            setIsAnalyzing(false);
-            setAudioChunks([]);
-        }
+        };
     };
 
     return (

@@ -210,13 +210,14 @@ def analyze_voice_recording(req: https_fn.Request) -> https_fn.Response:
     try:
         _initialize_clients() # Ensure clients are ready
 
-        if not req.files or "audio_file" not in req.files:
-            return https_fn.Response("Bad Request: 'audio_file' not found", status=400, headers=_cors_headers_for(origin))
+        data = req.get_json(silent=True) or {}
+        if "audioData" not in data:
+            return https_fn.Response(json.dumps({"error": "Bad Request: 'audioData' not found in JSON payload"}), status=400, mimetype="application/json", headers=_cors_headers_for(origin))
         
-        audio_file = req.files["audio_file"]
-        audio_content = audio_file.read()
+        # Decode the base64 data URI from the frontend
+        audio_content, _ = _decode_data_uri(data["audioData"])
         if not audio_content:
-            return https_fn.Response("Bad Request: Audio file is empty", status=400, headers=_cors_headers_for(origin))
+            return https_fn.Response(json.dumps({"error": "Bad Request: Audio data is empty"}), status=400, mimetype="application/json", headers=_cors_headers_for(origin))
             
         recognizer_path = f"projects/{PROJECT_ID}/locations/global/recognizers/_"
         recognition_config = cloud_speech.RecognitionConfig(auto_decoding_config={}, language_codes=["en-US"], model="chirp")
@@ -227,6 +228,7 @@ def analyze_voice_recording(req: https_fn.Request) -> https_fn.Response:
              raise ValueError("Transcription failed or returned empty.")
         transcript = transcription_response.results[0].alternatives[0].transcript
 
+        # --- This part for Gemini analysis remains the same ---
         prompt = f"""
         Analyze the following transcribed text from a client meeting. Your task is to first extract key project details into a JSON format. Second, provide a detailed summary of any other remodeling-related topics that were discussed.
 
@@ -261,9 +263,12 @@ def analyze_voice_recording(req: https_fn.Request) -> https_fn.Response:
         **Summary of other remodeling topics:**
         - ...
         """
+        
+        # Create a combined text for Gemini
+        full_prompt_for_gemini = f"{prompt}\n\nTranscribed Text:\n{transcript}"
 
         gemini_response = gemini_model.generate_content(
-            prompt,
+            full_prompt_for_gemini,
             generation_config=GenerationConfig(response_mime_type="application/json")
         )
         analysis_json = json.loads(gemini_response.text)
