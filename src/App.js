@@ -450,29 +450,34 @@ function VoiceAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplete })
         reader.readAsDataURL(audioBlob);
         reader.onloadend = async () => {
             const base64Audio = reader.result;
-            // IMPORTANT: Replace with your actual Cloud Function URL
+            // IMPORTANT: Ensure this is your correct Cloud Function URL
             const functionUrl = 'https://analyze-voice-recording-w47bikyqya-uc.a.run.app';
+            
             try {
                 const response = await fetch(functionUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
+                    // This is the critical line. Ensure it is exactly as written.
                     body: JSON.stringify({ audioData: base64Audio }),
                 });
 
                 const result = await response.json();
                 if (!response.ok) {
-                    // Use the error message from the JSON response
                     throw new Error(result.error || 'Analysis failed due to a server error.');
                 }
                 
-                // Note the change here to match the new Python response format
-                setAnalysisResult(result.analysis); 
-                // The summary is now part of the `analysis` object from Gemini
-                setSummary(result.analysis['Summary of other remodeling topics'] || null);
+                setAnalysisResult(result.analysis);
+                
+                // Check if 'Summary of other remodeling topics' exists before setting
+                const summaryText = result.analysis && result.analysis['Summary of other remodeling topics']
+                  ? result.analysis['Summary of other remodeling topics']
+                  : 'No additional topics summarized.';
+                setSummary(summaryText);
+
                 setTranscript(result.transcript);
                 
-                if (result.analysis && result.analysis.ScopeOfWork) {
-                    onAnalysisComplete(result.analysis.ScopeOfWork);
+                if (result.analysis && result.analysis['Scope of Work']) {
+                    onAnalysisComplete(result.analysis['Scope of Work']);
                 }
 
             } catch (err) {
