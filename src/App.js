@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { initializeApp } from 'firebase/app';
+// Make sure to re-link your CSS file if the name changed.
 import './App.css';
 import {
     getAuth,
@@ -24,7 +25,7 @@ import {
     serverTimestamp
 } from 'firebase/firestore';
 
-// Firebase configuration
+// Firebase configuration - NOTE: Using placeholder for security
 const firebaseConfig = {
     apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
     authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
@@ -33,6 +34,7 @@ const firebaseConfig = {
     messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
     appId: process.env.REACT_APP_FIREBASE_APP_ID
 };
+
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
@@ -59,7 +61,7 @@ const PRICING_RULES = {
 
 // Price Calculator Component
 function PriceCalculator({ user, onLogout, onPageChange, initialData, scopeOfWork }) {
-    const [items, setItems] = useState([{ id: uuidv4(), type: 'Full gut', sf: '' }]);
+    const [items, setItems] = useState([{ id: uuidv4(), type: '', sf: '' }]);
     const [totalPrice, setTotalPrice] = useState(0);
     const [projectName, setProjectName] = useState('');
     const [address, setAddress] = useState('');
@@ -89,13 +91,13 @@ function PriceCalculator({ user, onLogout, onPageChange, initialData, scopeOfWor
                     .map(([type, sf]) => ({ id: uuidv4(), type, sf: sf.toString() }));
             }
 
-            setItems(itemsToSet && itemsToSet.length > 0 ? itemsToSet : [{ id: uuidv4(), type: 'Full gut', sf: '' }]);
+            setItems(itemsToSet && itemsToSet.length > 0 ? itemsToSet : [{ id: uuidv4(), type: '', sf: '' }]);
         } else {
             setProjectName('');
             setAddress('');
             setClientName('');
             setScopeOfWorkText('');
-            setItems([{ id: uuidv4(), type: 'Full gut', sf: '' }]);
+            setItems([{ id: uuidv4(), type: '', sf: '' }]);
             setBlueprintUrl(null);
             setAnalysisData(null);
             setEditingProjectId(null);
@@ -113,7 +115,7 @@ function PriceCalculator({ user, onLogout, onPageChange, initialData, scopeOfWor
         const fullGutSF = parseFloat(items.find(item => item.type === 'Full gut')?.sf) || 0;
         items.forEach(item => {
             const parsedSF = parseFloat(item.sf) || 0;
-            if (parsedSF === 0) return;
+            if (parsedSF === 0 && item.type !== 'Landscape') return; // Allow landscape to be 0
             const itemType = item.type;
             let priceForItem = 0;
             const isSpecialCase = ['Structural Wall removal', '2nd Structural Wall removal', 'Living room', 'Bedroom'].includes(itemType);
@@ -129,7 +131,7 @@ function PriceCalculator({ user, onLogout, onPageChange, initialData, scopeOfWor
     }, [items]);
 
     const handleChange = (id, field, value) => setItems(items.map(item => item.id === id ? { ...item, [field]: value } : item));
-    const handleAddItem = () => setItems([...items, { id: uuidv4(), type: 'Full gut', sf: '' }]);
+    const handleAddItem = () => setItems([...items, { id: uuidv4(), type: '', sf: '' }]);
     const handleRemoveItem = (id) => setItems(items.filter(item => item.id !== id));
 
     const saveProject = async () => {
@@ -140,7 +142,7 @@ function PriceCalculator({ user, onLogout, onPageChange, initialData, scopeOfWor
         setSaveStatus("Saving...");
         const projectData = {
             projectName, address, clientName, scopeOfWork: scopeOfWorkText, finalPrice: totalPrice,
-            items: items.map(({ id, ...rest }) => rest),
+            items: items.filter(item => item.type).map(({ id, ...rest }) => rest), // Filter out empty items
             blueprintUrl,
             analysisResult: analysisData,
         };
@@ -174,59 +176,56 @@ function PriceCalculator({ user, onLogout, onPageChange, initialData, scopeOfWor
 
     return (
         <div className="app-container">
-            <div className="calculator-card">
-                <header className="header"><span className="user-info">Welcome, {user.email}!</span><button onClick={onLogout} className="logout-btn">Logout</button></header>
-                <div className="nav-buttons">
-                    <button className="nav-btn-active">Calculator</button>
-                    <button onClick={() => onPageChange('records')} className="nav-btn">Records</button>
-                    <button onClick={() => onPageChange('analyzer')} className="nav-btn">Blueprint Analyzer</button>
-                    <button onClick={() => onPageChange('voiceAnalyzer')} className="nav-btn">Voice Analyzer</button>
+            <div className="card w-full max-w-4xl bg-base-100 shadow-xl p-8 rounded-box">
+                <header className="header"><span className="font-bold">Welcome, {user.email}!</span><button onClick={onLogout} className="btn btn-ghost btn-sm">Logout</button></header>
+                <div role="tablist" className="tabs tabs-boxed mb-8">
+                    <a role="tab" className="tab tab-active">Calculator</a>
+                    <a role="tab" className="tab" onClick={() => onPageChange('records')}>Records</a>
+                    <a role="tab" className="tab" onClick={() => onPageChange('analyzer')}>Blueprint Analyzer</a>
+                    <a role="tab" className="tab" onClick={() => onPageChange('voiceAnalyzer')}>Voice Analyzer</a>
                 </div>
+
                 <h1 className="title">{editingProjectId ? 'Modify Project' : 'Pricing Calculator'}</h1>
                 <div className="project-details">
-                    <div className="input-group">
-                        <label className="input-label">Project Name</label>
-                        <input type="text" value={projectName} onChange={(e) => setProjectName(e.target.value)} className="input-field" />
+                    <div className="form-control w-full">
+                        <label className="label"><span className="label-text">Project Name</span></label>
+                        <input type="text" value={projectName} onChange={(e) => setProjectName(e.target.value)} className="input input-bordered w-full rounded-box" />
                     </div>
-                    <div className="input-group">
-                        <label className="input-label">Address</label>
-                        <input type="text" value={address} onChange={(e) => setAddress(e.target.value)} className="input-field" />
+                    <div className="form-control w-full">
+                        <label className="label"><span className="label-text">Address</span></label>
+                        <input type="text" value={address} onChange={(e) => setAddress(e.target.value)} className="input input-bordered w-full rounded-box" />
                     </div>
-                    <div className="input-group">
-                        <label className="input-label">Client Name</label>
-                        <input type="text" value={clientName} onChange={(e) => setClientName(e.target.value)} className="input-field" />
+                    <div className="form-control w-full">
+                        <label className="label"><span className="label-text">Client Name</span></label>
+                        <input type="text" value={clientName} onChange={(e) => setClientName(e.target.value)} className="input input-bordered w-full rounded-box" />
                     </div>
-                    <div className="input-group">
-                        <label className="input-label">Scope of Work</label>
+                    <div className="form-control w-full">
+                        <label className="label"><span className="label-text">Scope of Work</span></label>
                         <textarea
                             value={scopeOfWorkText}
                             onChange={(e) => setScopeOfWorkText(e.target.value)}
-                            className="input-field"
+                            className="textarea textarea-bordered rounded-box"
                             rows={4}
                         />
                     </div>
                 </div>
                 <div className="items-container">{items.map((item) => (
                     <div key={item.id} className="item-row">
-                        <div className="input-group">
-                            <select value={item.type} onChange={(e) => handleChange(item.id, 'type', e.target.value)} className="input-field">
-                                {options.map(option => (<option key={option.value} value={option.value}>{option.label}</option>))}
-                            </select>
-                        </div>
-                        <div className="input-group">
-                            <input type="number" placeholder="Square Feet" value={item.sf} onChange={(e) => handleChange(item.id, 'sf', e.target.value)} className="input-field" />
-                        </div>
-                        {items.length > 1 && (<button onClick={() => handleRemoveItem(item.id)} className="remove-btn">Remove</button>)}
+                        <select value={item.type} onChange={(e) => handleChange(item.id, 'type', e.target.value)} className="select select-bordered grow rounded-box">
+                            <option value="" disabled>Select item type</option>
+                            {options.map(option => (<option key={option.value} value={option.value}>{option.label}</option>))}
+                        </select>
+                        <input type="number" placeholder="Square Feet" value={item.sf} onChange={(e) => handleChange(item.id, 'sf', e.target.value)} className="input input-bordered grow rounded-box" />
+                        {items.length > 1 && (<button onClick={() => handleRemoveItem(item.id)} className="btn btn-error btn-outline">Remove</button>)}
                     </div>))}
                 </div>
-                <button onClick={handleAddItem} className="add-btn">+ Add Item</button>
-                <div className="total-display">
-                    <span className="total-label">Total Price:</span>
-                    <span className="calculator-total-price">${totalPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                <button onClick={handleAddItem} className="btn btn-secondary btn-outline w-full mt-4">+ Add Item</button>
+                <div className="text-right text-3xl font-bold mt-6 text-success">
+                    Total Price: ${totalPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
-                <div className="save-container">
-                    {saveStatus && <p className="save-status">{saveStatus}</p>}
-                    <button onClick={saveProject} className="save-btn">{editingProjectId ? 'Update Project' : 'Save Project'}</button>
+                <div className="text-right mt-4">
+                    {saveStatus && <p className="text-sm text-info mb-2">{saveStatus}</p>}
+                    <button onClick={saveProject} className="btn btn-primary btn-outline">{editingProjectId ? 'Update Project' : 'Save Project'}</button>
                 </div>
             </div>
         </div>
@@ -237,7 +236,8 @@ function PriceCalculator({ user, onLogout, onPageChange, initialData, scopeOfWor
 function RecordsPage({ user, onLogout, onPageChange }) {
     const [projects, setProjects] = useState([]);
     const [expandedRow, setExpandedRow] = useState(null);
-    const [projectToDelete, setProjectToDelete] = useState(null);
+    const projectToDelete = useRef(null);
+    const modalRef = useRef(null);
 
     useEffect(() => {
         if (!user) return;
@@ -248,79 +248,94 @@ function RecordsPage({ user, onLogout, onPageChange }) {
         return () => unsubscribe();
     }, [user]);
 
-    const handleDeleteClick = (project) => setProjectToDelete(project);
+    const handleDeleteClick = (project) => {
+        projectToDelete.current = project;
+        modalRef.current.showModal();
+    };
+
     const confirmDelete = async () => {
-        if (!projectToDelete) return;
+        if (!projectToDelete.current) return;
         try {
-            await deleteDoc(doc(db, 'projects', projectToDelete.id));
-            setProjectToDelete(null);
+            await deleteDoc(doc(db, 'projects', projectToDelete.current.id));
         } catch (error) { console.error("Error deleting project:", error); }
     };
-    const cancelDelete = () => setProjectToDelete(null);
 
     return (
         <div className="app-container">
-            {projectToDelete && (
-                <div className="modal-overlay">
-                    <div className="modal-content">
-                        <h2>Are you sure?</h2><p>This will permanently delete the project "{projectToDelete.projectName}".</p>
-                        <div className="modal-actions">
-                            <button onClick={cancelDelete} className="btn-secondary">No</button>
-                            <button onClick={confirmDelete} className="btn-danger">Yes, delete record</button>
-                        </div>
+            <dialog id="delete_modal" className="modal" ref={modalRef}>
+                <div className="modal-box rounded-box">
+                    <h3 className="font-bold text-lg">Are you sure?</h3>
+                    <p className="py-4">This will permanently delete the project "{projectToDelete.current?.projectName}".</p>
+                    <div className="modal-action">
+                        <form method="dialog">
+                            <button className="btn btn-outline mr-2">No</button>
+                            <button className="btn btn-error btn-outline" onClick={confirmDelete}>Yes, delete record</button>
+                        </form>
                     </div>
                 </div>
-            )}
-            <div className="calculator-card">
+            </dialog>
+
+            <div className="card w-full max-w-4xl bg-base-100 shadow-xl p-8 rounded-box">
                 <header className="header">
-                    <span className="user-info">Welcome, {user.email}!</span>
-                    <button onClick={onLogout} className="logout-btn">Logout</button>
+                    <span className="font-bold">Welcome, {user.email}!</span>
+                    <button onClick={onLogout} className="btn btn-ghost btn-sm">Logout</button>
                 </header>
-                <div className="nav-buttons">
-                    <button onClick={() => onPageChange('calculator')} className="nav-btn">Calculator</button>
-                    <button className="nav-btn-active">Records</button>
-                    <button onClick={() => onPageChange('analyzer')} className="nav-btn">Blueprint Analyzer</button>
-                    <button onClick={() => onPageChange('voiceAnalyzer')} className="nav-btn">Voice Analyzer</button>
+                <div role="tablist" className="tabs tabs-boxed mb-8">
+                    <a role="tab" className="tab" onClick={() => onPageChange('calculator')}>Calculator</a>
+                    <a role="tab" className="tab tab-active">Records</a>
+                    <a role="tab" className="tab" onClick={() => onPageChange('analyzer')}>Blueprint Analyzer</a>
+                    <a role="tab" className="tab" onClick={() => onPageChange('voiceAnalyzer')}>Voice Analyzer</a>
                 </div>
                 <h1 className="title">Project Records</h1>
-                <div className="records-table">
-                    <div className="records-header records-row">
-                        <span className="header-col">Project Name</span>
-                        <span className="header-col">Client Name</span>
-                        <span className="header-col">Address</span>
-                        <span className="header-col">Final Price</span>
-                        <span className="header-col"></span>
-                    </div>
-                    {projects.map(project => (
-                        <div key={project.id}>
-                            <div className="records-row" onClick={() => setExpandedRow(expandedRow === project.id ? null : project.id)}>
-                                <span className="data-col">{project.projectName}</span>
-                                <span className="data-col">{project.clientName}</span>
-                                <span className="data-col">{project.address}</span>
-                                <span className="data-col total-price">${(project.finalPrice ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                                <button className="expand-btn">{expandedRow === project.id ? '▲' : '▼'}</button>
-                            </div>
-                            {expandedRow === project.id && (
-                                <div className="item-details">
-                                    {project.blueprintUrl && (<div className="details-row blueprint-link-row"><span>Blueprint</span><span><a href={project.blueprintUrl} target="_blank" rel="noopener noreferrer">View Blueprint</a></span></div>)}
-                                    {project.userName && (<div className="details-row"><span>User Created</span><span>{project.userName}</span></div>)}
-                                    {project.modifiedBy && (<div className="details-row"><span>Last Modified By</span><span>{project.modifiedBy}</span></div>)}
-                                    {project.scopeOfWork && (<div className="details-row scope-of-work-row"><span>Scope of Work</span><span>{project.scopeOfWork}</span></div>)}
-                                    <div className="details-header details-row"><span>Item</span><span>Square Feet</span></div>
-                                    {(project.items || []).map((item, index) => (<div key={index} className="details-row"><span>{item.type}</span><span>{item.sf}</span></div>))}
-                                    <div className="details-actions">
-                                        <button onClick={() => onPageChange('calculator', project)} className="btn-modify">Modify</button>
-                                        <button onClick={() => handleDeleteClick(project)} className="btn-delete">Delete</button>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    ))}
+                <div className="overflow-x-auto">
+                    <table className="table w-full">
+                        <thead>
+                            <tr>
+                                <th>Project Name</th>
+                                <th>Client Name</th>
+                                <th>Address</th>
+                                <th>Final Price</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {projects.map(project => (
+                                <React.Fragment key={project.id}>
+                                    <tr className="hover cursor-pointer" onClick={() => setExpandedRow(expandedRow === project.id ? null : project.id)}>
+                                        <td>{project.projectName}</td>
+                                        <td>{project.clientName}</td>
+                                        <td>{project.address}</td>
+                                        <td className="font-bold text-secondary">${(project.finalPrice ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                        <td>{expandedRow === project.id ? '▲' : '▼'}</td>
+                                    </tr>
+                                    {expandedRow === project.id && (
+                                        <tr>
+                                            <td colSpan="5" className="bg-base-200 p-4 rounded-box">
+                                                {project.blueprintUrl && (<div><strong>Blueprint:</strong> <a href={project.blueprintUrl} target="_blank" rel="noopener noreferrer" className="link link-primary">View Blueprint</a></div>)}
+                                                {project.userName && (<div><strong>User Created:</strong> {project.userName}</div>)}
+                                                {project.modifiedBy && (<div><strong>Last Modified By:</strong> {project.modifiedBy}</div>)}
+                                                {project.scopeOfWork && (<div><strong>Scope of Work:</strong> {project.scopeOfWork}</div>)}
+                                                <div className="font-bold mt-2">Items:</div>
+                                                <ul>
+                                                    {(project.items || []).map((item, index) => (<li key={index}>{item.type}: {item.sf} sq ft</li>))}
+                                                </ul>
+                                                <div className="text-right mt-4">
+                                                    <button onClick={() => onPageChange('calculator', project)} className="btn btn-primary btn-outline btn-sm mr-2">Modify</button>
+                                                    <button onClick={() => handleDeleteClick(project)} className="btn btn-error btn-outline btn-sm">Delete</button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    )}
+                                </React.Fragment>
+                            ))}
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
     );
 }
+
 
 // Blueprint Analyzer Page Component
 function BlueprintAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplete }) {
@@ -342,7 +357,7 @@ function BlueprintAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplet
     const handleAnalyze = async () => {
         if (!blueprintFile) { setError('Please select a file.'); return; }
         setIsAnalyzing(true); setError(''); setAnalysisResult(null); setUploadedBlueprintUrl(null);
-        const functionUrl = process.env.NODE_ENV === 'development' ? 'https://analyze-blueprint-w47bikyqya-uc.a.run.app' : 'https://analyze-blueprint-w47bikyqya-uc.a.run.app';
+        const functionUrl = 'https://analyze-blueprint-w47bikyqya-uc.a.run.app';
         const getBase64 = (file) => new Promise((resolve, reject) => {
             const reader = new FileReader(); reader.readAsDataURL(file);
             reader.onload = () => resolve(reader.result); reader.onerror = (error) => reject(error);
@@ -376,29 +391,32 @@ function BlueprintAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplet
 
     return (
         <div className="app-container">
-            <div className="calculator-card">
+            <div className="card w-full max-w-4xl bg-base-100 shadow-xl p-8 rounded-box">
                 <header className="header">
-                    <span className="user-info">Welcome, {user.email}!</span>
-                    <button onClick={onLogout} className="logout-btn">Logout</button>
+                    <span className="font-bold">Welcome, {user.email}!</span>
+                    <button onClick={onLogout} className="btn btn-ghost btn-sm">Logout</button>
                 </header>
-                <div className="nav-buttons">
-                    <button onClick={() => onPageChange('calculator')} className="nav-btn">Calculator</button>
-                    <button onClick={() => onPageChange('records')} className="nav-btn">Records</button>
-                    <button className="nav-btn-active">Blueprint Analyzer</button>
-                    <button onClick={() => onPageChange('voiceAnalyzer')} className="nav-btn">Voice Analyzer</button>
+                <div role="tablist" className="tabs tabs-boxed mb-8">
+                    <a role="tab" className="tab" onClick={() => onPageChange('calculator')}>Calculator</a>
+                    <a role="tab" className="tab" onClick={() => onPageChange('records')}>Records</a>
+                    <a role="tab" className="tab tab-active">Blueprint Analyzer</a>
+                    <a role="tab" className="tab" onClick={() => onPageChange('voiceAnalyzer')}>Voice Analyzer</a>
                 </div>
                 <h1 className="title">Blueprint Analyzer</h1>
-                <p>Upload a blueprint (PNG, JPG, or PDF) to automatically extract square footage.</p>
-                <div className="file-upload-container">
-                    <input type="file" onChange={handleFileChange} accept="image/png, image/jpeg, application/pdf" className="input-field file-input" />
-                    <button onClick={handleAnalyze} disabled={isAnalyzing || !blueprintFile} className="add-btn">{isAnalyzing ? 'Analyzing...' : 'Analyze Blueprint'}</button>
+                <p>Upload a blueprint (PNG, JPG, or PDF) to automatically extract project details.</p>
+                <div className="form-control w-full mt-4">
+                    <input type="file" onChange={handleFileChange} accept="image/png, image/jpeg, application/pdf" className="file-input file-input-bordered w-full rounded-box" />
+                    <button onClick={handleAnalyze} disabled={isAnalyzing || !blueprintFile} className="btn btn-secondary btn-outline mt-4">
+                        {isAnalyzing && <span className="loading loading-spinner"></span>}
+                        {isAnalyzing ? 'Analyzing...' : 'Analyze Blueprint'}
+                    </button>
                 </div>
-                {error && <p className="error-message">{error}</p>}
+                {error && <div className="alert alert-error mt-4 rounded-box">{error}</div>}
                 {analysisResult && (
-                    <div className="analysis-results">
-                        <h3>Analysis Results:</h3>
-                        <pre className="result-json">{JSON.stringify(analysisResult, null, 2)}</pre>
-                        <button onClick={handleUseInCalculator} className="save-btn">Use in Calculator</button>
+                    <div className="mt-6">
+                        <h3 className="text-xl font-bold">Analysis Results:</h3>
+                        <pre className="bg-base-200 p-4 mt-2 rounded-box">{JSON.stringify(analysisResult, null, 2)}</pre>
+                        <button onClick={handleUseInCalculator} className="btn btn-primary btn-outline mt-4">Use in Calculator</button>
                     </div>
                 )}
             </div>
@@ -409,7 +427,7 @@ function BlueprintAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplet
 // Voice Analyzer Page Component
 function VoiceAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplete }) {
     const [isRecording, setIsRecording] = useState(false);
-    const [mediaRecorder, setMediaRecorder] = useState(null);
+    const mediaRecorder = useRef(null);
     const [audioChunks, setAudioChunks] = useState([]);
     const [analysisResult, setAnalysisResult] = useState(null);
     const [summary, setSummary] = useState(null);
@@ -421,11 +439,11 @@ function VoiceAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplete })
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
+            mediaRecorder.current = recorder;
             recorder.ondataavailable = (event) => {
                 setAudioChunks((prev) => [...prev, event.data]);
             };
             recorder.start();
-            setMediaRecorder(recorder);
             setIsRecording(true);
         } catch (err) {
             setError('Could not start recording. Please ensure you have given microphone permissions.');
@@ -433,7 +451,7 @@ function VoiceAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplete })
     };
 
     const stopRecording = () => {
-        mediaRecorder.stop();
+        mediaRecorder.current.stop();
         setIsRecording(false);
     };
 
@@ -450,14 +468,12 @@ function VoiceAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplete })
         reader.readAsDataURL(audioBlob);
         reader.onloadend = async () => {
             const base64Audio = reader.result;
-            // IMPORTANT: Ensure this is your correct Cloud Function URL
             const functionUrl = 'https://analyze-voice-recording-w47bikyqya-uc.a.run.app';
             
             try {
                 const response = await fetch(functionUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    // This is the critical line. Ensure it is exactly as written.
                     body: JSON.stringify({ audioData: base64Audio }),
                 });
 
@@ -468,10 +484,9 @@ function VoiceAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplete })
                 
                 setAnalysisResult(result.analysis);
                 
-                // Check if 'Summary of other remodeling topics' exists before setting
                 const summaryText = result.analysis && result.analysis['Summary of other remodeling topics']
-                  ? result.analysis['Summary of other remodeling topics']
-                  : 'No additional topics summarized.';
+                    ? result.analysis['Summary of other remodeling topics']
+                    : 'No additional topics summarized.';
                 setSummary(summaryText);
 
                 setTranscript(result.transcript);
@@ -491,30 +506,31 @@ function VoiceAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplete })
 
     return (
         <div className="app-container">
-            <div className="calculator-card">
+            <div className="card w-full max-w-4xl bg-base-100 shadow-xl p-8 rounded-box">
                 <header className="header">
-                    <span className="user-info">Welcome, {user.email}!</span>
-                    <button onClick={onLogout} className="logout-btn">Logout</button>
+                    <span className="font-bold">Welcome, {user.email}!</span>
+                    <button onClick={onLogout} className="btn btn-ghost btn-sm">Logout</button>
                 </header>
-                <div className="nav-buttons">
-                    <button onClick={() => onPageChange('calculator')} className="nav-btn">Calculator</button>
-                    <button onClick={() => onPageChange('records')} className="nav-btn">Records</button>
-                    <button onClick={() => onPageChange('analyzer')} className="nav-btn">Blueprint Analyzer</button>
-                    <button className="nav-btn-active">Voice Analyzer</button>
+                <div role="tablist" className="tabs tabs-boxed mb-8">
+                    <a role="tab" className="tab" onClick={() => onPageChange('calculator')}>Calculator</a>
+                    <a role="tab" className="tab" onClick={() => onPageChange('records')}>Records</a>
+                    <a role="tab" className="tab" onClick={() => onPageChange('analyzer')}>Blueprint Analyzer</a>
+                    <a role="tab" className="tab tab-active">Voice Analyzer</a>
                 </div>
                 <h1 className="title">Voice Recording & Analysis</h1>
-                <div className="voice-recorder">
-                    <button onClick={isRecording ? stopRecording : startRecording} className={`record-btn ${isRecording ? 'recording' : ''}`}>
+                <div className="flex gap-4">
+                    <button onClick={isRecording ? stopRecording : startRecording} className={`btn ${isRecording ? 'btn-error' : 'btn-primary'} btn-outline grow`}>
                         {isRecording ? 'Stop Recording' : 'Start Recording'}
                     </button>
-                    <button onClick={handleAnalyze} disabled={isAnalyzing || isRecording || audioChunks.length === 0} className="add-btn">
+                    <button onClick={handleAnalyze} disabled={isAnalyzing || isRecording || audioChunks.length === 0} className="btn btn-secondary btn-outline grow">
+                        {isAnalyzing && <span className="loading loading-spinner"></span>}
                         {isAnalyzing ? 'Analyzing...' : 'Analyze Recording'}
                     </button>
                 </div>
-                {error && <p className="error-message">{error}</p>}
-                {transcript && <div className="analysis-results"><h3>Transcript:</h3><p>{transcript}</p></div>}
-                {analysisResult && <div className="analysis-results"><h3>Analysis Results:</h3><pre className="result-json">{JSON.stringify(analysisResult, null, 2)}</pre></div>}
-                {summary && <div className="analysis-results"><h3>Summary:</h3><p>{summary}</p></div>}
+                {error && <div className="alert alert-error mt-4 rounded-box">{error}</div>}
+                {transcript && <div className="mt-6"><h3>Transcript:</h3><p className="bg-base-200 p-2 rounded-box">{transcript}</p></div>}
+                {analysisResult && <div className="mt-4"><h3>Analysis Results:</h3><pre className="bg-base-200 p-2 rounded-box">{JSON.stringify(analysisResult, null, 2)}</pre></div>}
+                {summary && <div className="mt-4"><h3>Summary:</h3><p className="bg-base-200 p-2 rounded-box">{summary}</p></div>}
             </div>
         </div>
     );
@@ -547,19 +563,31 @@ function AuthPage() {
 
     return (
         <div className="app-container">
-            <div className="calculator-card auth-card">
-                <h1 className="title">{isSignUp ? 'Create an Account' : 'Login'}</h1>
-                <form onSubmit={handleAuthAction} className="auth-form">
-                    <div className="input-group"><input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required className="input-field" /></div>
-                    <div className="input-group"><input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required className="input-field" /></div>
-                    {isSignUp && (<div className="input-group"><input type="password" placeholder="Confirm Password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required className="input-field" /></div>)}
-                    {error && <p className="error-message">{error}</p>}
-                    <button type="submit" className="auth-btn">{isSignUp ? 'Sign Up' : 'Login'}</button>
+            <div className="card w-full max-w-sm bg-base-100 shadow-xl p-8 rounded-box">
+                <form onSubmit={handleAuthAction}>
+                    <h1 className="title">{isSignUp ? 'Create Account' : 'Login'}</h1>
+                    <div className="form-control w-full">
+                        <label className="label"><span className="label-text">Email</span></label>
+                        <input type="email" placeholder="email@baroncnr.com" value={email} onChange={(e) => setEmail(e.target.value)} required className="input input-bordered w-full rounded-box" />
+                    </div>
+                    <div className="form-control w-full mt-4">
+                        <label className="label"><span className="label-text">Password</span></label>
+                        <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required className="input input-bordered w-full rounded-box" />
+                    </div>
+                    {isSignUp && (
+                        <div className="form-control w-full mt-4">
+                            <label className="label"><span className="label-text">Confirm Password</span></label>
+                            <input type="password" placeholder="Confirm Password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required className="input input-bordered w-full rounded-box" />
+                        </div>
+                    )}
+                    {error && <p className="text-error text-center mt-4">{error}</p>}
+                    <button type="submit" className="btn btn-primary btn-outline w-full mt-6">{isSignUp ? 'Sign Up' : 'Login'}</button>
+                    <div className="text-center mt-4">
+                        <a className="link link-hover" onClick={() => setIsSignUp(!isSignUp)}>{isSignUp ? 'Already have an account? Login' : 'Need an account? Sign Up'}</a>
+                        {!isSignUp && (<div className="divider">OR</div>)}
+                        {!isSignUp && (<a className="link link-hover" onClick={handlePasswordReset}>Forgot Password?</a>)}
+                    </div>
                 </form>
-                <div className="auth-links">
-                    <button className="link-btn" onClick={() => setIsSignUp(!isSignUp)}>{isSignUp ? 'Already have an account? Login' : 'Need an account? Sign Up'}</button>
-                    {!isSignUp && (<button className="link-btn" onClick={handlePasswordReset}>Forgot Password?</button>)}
-                </div>
             </div>
         </div>
     );
@@ -584,7 +612,7 @@ export default function App() {
     const handleLogout = async () => { await signOut(auth); };
 
     if (loading) {
-        return (<div className="loading-container"><div className="spinner"></div></div>);
+        return (<div className="flex justify-center items-center min-h-screen"><span className="loading loading-spinner loading-lg"></span></div>);
     }
 
     const handlePageChange = (page, data = null) => {
@@ -608,3 +636,4 @@ export default function App() {
         </>
     );
 }
+
