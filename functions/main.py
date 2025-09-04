@@ -231,6 +231,7 @@ def analyze_voice_recording(req: https_fn.Request) -> https_fn.Response:
         if not audio_content:
             return https_fn.Response(json.dumps({"error": "Bad Request: Audio data is empty"}), status=400, mimetype="application/json", headers=_cors_headers_for(origin))
             
+        # 1. Upload audio to a temporary location in Google Cloud Storage
         bucket_name = _get_bucket_name()
         bucket = storage_client.bucket(bucket_name)
         
@@ -244,29 +245,31 @@ def analyze_voice_recording(req: https_fn.Request) -> https_fn.Response:
         audio_blob = bucket.blob(audio_file_name)
         audio_blob.upload_from_string(audio_content, content_type=clean_mime_type)
 
+        # 2. Configure and start the asynchronous transcription job
         recognizer_path = f"projects/{PROJECT_ID}/locations/us-central1/recognizers/_"
         
-        # --- FINAL FIX: Explicitly define the audio encoding ---
-        # Instead of relying on auto-detection, we specify the exact format.
+        # Explicitly define the audio encoding to prevent errors
         explicit_config = speech_v2.ExplicitDecodingConfig(
             encoding=speech_v2.ExplicitDecodingConfig.AudioEncoding.WEBM_OPUS,
-            sample_rate_hertz=48000,  # Common for browser recordings
+            sample_rate_hertz=48000,
             audio_channel_count=1,
         )
         
         features = speech_v2.RecognitionFeatures(enable_automatic_punctuation=True)
         
         recognition_config = speech_v2.RecognitionConfig(
-            explicit_decoding_config=explicit_config, # Use explicit config instead of auto
+            explicit_decoding_config=explicit_config,
             language_codes=["en-US"], 
             model="chirp",
             features=features
         )
         
+        # Tell the API where to save the transcript result
         output_config = speech_v2.RecognitionOutputConfig(
             gcs_output_config=speech_v2.GcsOutputConfig(uri=gcs_output_uri)
         )
 
+        # Create and run the batch (asynchronous) recognition request
         request = speech_v2.BatchRecognizeRequest(
             recognizer=recognizer_path, 
             config=recognition_config, 
@@ -277,8 +280,9 @@ def analyze_voice_recording(req: https_fn.Request) -> https_fn.Response:
         operation = speech_client.batch_recognize(request=request)
         
         print("Waiting for transcription to complete...")
-        operation_result = operation.result(timeout=480)
+        operation_result = operation.result(timeout=480) # Wait for the job to finish
         
+        # 3. Retrieve the transcript from the result
         file_result = operation_result.results.get(gcs_uri)
 
         if not file_result:
@@ -293,10 +297,10 @@ def analyze_voice_recording(req: https_fn.Request) -> https_fn.Response:
         
         transcript = file_result.transcript.results[0].alternatives[0].transcript
         
+        # 4. Clean up temporary files from Cloud Storage
         audio_blob.delete()
         for blob in bucket.list_blobs(prefix=output_folder_name):
             blob.delete()
-
 
         # --- Gemini analysis prompt (remains the same) ---
         prompt = f"""
