@@ -9,8 +9,7 @@ from firebase_functions import https_fn, options
 # --- Google Cloud Client Libraries ---
 from google.cloud import storage
 from google.api_core import client_options
-from google.cloud.speech_v2 import SpeechClient
-from google.cloud.speech_v2.types import cloud_speech
+from google.cloud import speech_v2
 import vertexai
 from vertexai.generative_models import GenerativeModel, GenerationConfig, Part
 
@@ -77,7 +76,7 @@ def _initialize_clients():
         opts = client_options.ClientOptions(
             api_endpoint="us-central1-speech.googleapis.com"
         )
-        speech_client = SpeechClient(client_options=opts)
+        speech_client = speech_v2.SpeechClient(client_options=opts)
 
     if gemini_model is None:
         gemini_model = GenerativeModel("gemini-2.5-pro") 
@@ -241,10 +240,10 @@ def analyze_voice_recording(req: https_fn.Request) -> https_fn.Response:
 
         # 2. Call the ASYNCHRONOUS Speech-to-Text API
         recognizer_path = f"projects/{PROJECT_ID}/locations/us-central1/recognizers/_"
-        recognition_config = cloud_speech.RecognitionConfig(auto_decoding_config={}, language_codes=["en-US"], model="chirp")
+        recognition_config = speech_v2.cloud_speech.RecognitionConfig(auto_decoding_config={}, language_codes=["en-US"], model="chirp")
         
         # Use a long-running request with the GCS URI
-        request = cloud_speech.LongRunningRecognizeRequest(
+        request = speech_v2.cloud_speech.LongRunningRecognizeRequest(
             recognizer=recognizer_path, 
             config=recognition_config, 
             files=[{"uri": gcs_uri}]
