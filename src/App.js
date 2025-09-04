@@ -421,7 +421,6 @@ function VoiceAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplete })
     const mediaRecorder = useRef(null);
     const [audioChunks, setAudioChunks] = useState([]);
     const [analysisResult, setAnalysisResult] = useState(null);
-    const [summary, setSummary] = useState(null);
     const [transcript, setTranscript] = useState(null);
     const [error, setError] = useState('');
     const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -474,12 +473,6 @@ function VoiceAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplete })
                 }
                 
                 setAnalysisResult(result.analysis);
-                
-                const summaryText = result.analysis && result.analysis['Summary of other remodeling topics']
-                    ? result.analysis['Summary of other remodeling topics']
-                    : 'No additional topics summarized.';
-                setSummary(summaryText);
-
                 setTranscript(result.transcript);
 
             } catch (err) {
@@ -533,7 +526,6 @@ function VoiceAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplete })
                 {error && <div className="alert alert-error mt-4 rounded-box">{error}</div>}
                 {transcript && <div className="mt-6"><h3>Transcript:</h3><p className="bg-base-200 p-2 rounded-box">{transcript}</p></div>}
                 {analysisResult && <div className="mt-4"><h3>Analysis Results:</h3><pre className="bg-base-200 p-2 rounded-box">{JSON.stringify(analysisResult, null, 2)}</pre></div>}
-                {summary && <div className="mt-4"><h3>Summary:</h3><p className="bg-base-200 p-2 rounded-box">{summary}</p></div>}
                 {analysisResult && (
                     <button onClick={handleUseInCalculator} className="btn btn-primary btn-outline mt-4">
                         Use in Calculator
