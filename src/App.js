@@ -427,12 +427,25 @@ function VoiceAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplete })
 
     const startRecording = async () => {
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
-            mediaRecorder.current = recorder;
-            recorder.ondataavailable = (event) => {
-                setAudioChunks((prev) => [...prev, event.data]);
+            const mime = (window.MediaRecorder?.isTypeSupported?.('audio/webm;codecs=opus'))
+                ? 'audio/webm;codecs=opus'
+                : (window.MediaRecorder?.isTypeSupported?.('audio/ogg;codecs=opus') ? 'audio/ogg;codecs=opus' : null);
+            if (!mime) { setError('This browser cannot record WebM/OGG Opus. Please use Chrome/Edge.'); return; }
+            const stream = await navigator.mediaDevices.getUserMedia({
+                audio: { channelCount: 1, sampleRate: 48000, noiseSuppression: true, echoCancellation: true, autoGainControl: true }
+            });
+            const recorder = new MediaRecorder(stream, { mimeType: mime });
+            mediaRecorder.current = recorder;                 // ✅ keep a ref for stop()
+
+            const chunks = [];
+            recorder.ondataavailable = (e) => {              // ✅ single handler
+                if (e.data && e.data.size) chunks.push(e.data);
             };
+            recorder.onstop = () => {                        // ✅ build one Blob when stopped
+                const blob = new Blob(chunks, { type: mime });
+                setAudioChunks([blob]);
+            };
+
             recorder.start();
             setIsRecording(true);
         } catch (err) {
@@ -440,20 +453,33 @@ function VoiceAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplete })
         }
     };
 
-    const stopRecording = () => {
-        mediaRecorder.current.stop();
-        setIsRecording(false);
-    };
+    const stopRecording = () => new Promise((resolve) => {
+        try {
+            if (mediaRecorder.current && mediaRecorder.current.state !== 'inactive') {
+                const orig = mediaRecorder.current.onstop;
+                mediaRecorder.current.onstop = (e) => { orig && orig(e); resolve(); };
+                mediaRecorder.current.stop();
+                // also stop mic tracks to release the device
+                mediaRecorder.current.stream?.getTracks()?.forEach(t => t.stop());
+            } else {
+                resolve();
+            }
+        } finally {
+            setIsRecording(false);
+        }
+    });
 
     const handleAnalyze = async () => {
-        if (audioChunks.length === 0) {
-            setError('No audio recorded.');
+        if (isRecording) await stopRecording();        // ensure Blob is finalized
+        if (audioChunks.length === 0 || audioChunks[0].size < 2000) {
+            setError('No usable audio recorded. Please speak for a few seconds and try again.');
             return;
         }
+
         setIsAnalyzing(true);
         setError('');
 
-        const audioBlob = new Blob(audioChunks, { type: 'audio/webm;codecs=opus' });
+        const audioBlob = audioChunks[0];              // ✅ use the actual recorded mime
         const reader = new FileReader();
         reader.readAsDataURL(audioBlob);
         reader.onloadend = async () => {
@@ -463,6 +489,7 @@ function VoiceAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplete })
             try {
                 const response = await fetch(functionUrl, {
                     method: 'POST',
+                    mode: 'cors',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ audioData: base64Audio }),
                 });
@@ -518,7 +545,7 @@ function VoiceAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplete })
                     <button onClick={isRecording ? stopRecording : startRecording} className={`btn ${isRecording ? 'btn-error' : 'btn-primary'} btn-outline grow`}>
                         {isRecording ? 'Stop Recording' : 'Start Recording'}
                     </button>
-                    <button onClick={handleAnalyze} disabled={isAnalyzing || isRecording || audioChunks.length === 0} className="btn btn-secondary btn-outline grow">
+                    <button onClick={handleAnalyze} disabled={isAnalyzing} className="btn btn-secondary btn-outline grow">
                         {isAnalyzing && <span className="loading loading-spinner"></span>}
                         {isAnalyzing ? 'Analyzing...' : 'Analyze Recording'}
                     </button>
