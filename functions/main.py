@@ -226,6 +226,8 @@ def analyze_voice_recording(req: https_fn.Request) -> https_fn.Response:
             return https_fn.Response(json.dumps({"error": "Bad Request: 'audioData' not found"}), status=400, mimetype="application/json", headers=_cors_headers_for(origin))
         
         audio_content, mime_type = _decode_data_uri(data["audioData"])
+        clean_mime_type = "audio/webm"
+
         if not audio_content:
             return https_fn.Response(json.dumps({"error": "Bad Request: Audio data is empty"}), status=400, mimetype="application/json", headers=_cors_headers_for(origin))
             
@@ -233,19 +235,24 @@ def analyze_voice_recording(req: https_fn.Request) -> https_fn.Response:
         bucket = storage_client.bucket(bucket_name)
         
         unique_id = uuid.uuid4()
-        file_extension = mime_type.split('/')[-1].split(';')[0]
-        audio_file_name = f"audio_recordings/{unique_id}.{file_extension}"
+        audio_file_name = f"audio_recordings/{unique_id}.webm"
         output_folder_name = f"audio_transcripts/{unique_id}/"
         
         gcs_uri = f"gs://{bucket_name}/{audio_file_name}"
         gcs_output_uri = f"gs://{bucket_name}/{output_folder_name}"
 
         audio_blob = bucket.blob(audio_file_name)
-        audio_blob.upload_from_string(audio_content, content_type=mime_type)
+        audio_blob.upload_from_string(audio_content, content_type=clean_mime_type)
 
         recognizer_path = f"projects/{PROJECT_ID}/locations/us-central1/recognizers/_"
         
-        recognition_config = speech_v2.RecognitionConfig(auto_decoding_config={}, language_codes=["en-US"], model="chirp")
+        features = speech_v2.RecognitionFeatures(enable_automatic_punctuation=True)
+        recognition_config = speech_v2.RecognitionConfig(
+            auto_decoding_config={}, 
+            language_codes=["en-US"], 
+            model="chirp",
+            features=features
+        )
         
         output_config = speech_v2.RecognitionOutputConfig(
             gcs_output_config=speech_v2.GcsOutputConfig(uri=gcs_output_uri)
@@ -263,23 +270,25 @@ def analyze_voice_recording(req: https_fn.Request) -> https_fn.Response:
         print("Waiting for transcription to complete...")
         operation_result = operation.result(timeout=480)
         
-        # --- NEW: Detailed Error Handling and Transcript Extraction ---
+        # --- NEW: Log the entire raw response for debugging ---
+        print(f"--- FULL SPEECH API RESPONSE ---")
+        print(operation_result)
+        print(f"------------------------------")
+        
         file_result = operation_result.results.get(gcs_uri)
 
         if not file_result:
             raise ValueError(f"No result found for the audio file URI: {gcs_uri}")
 
-        # Check if the API returned a specific error for this file
         if file_result.error:
-            raise ValueError(f"Speech API error: {file_result.error.message}")
+            error_message = f"Speech API error code {file_result.error.code}: {file_result.error.message}"
+            raise ValueError(error_message)
         
-        # Check if the transcript itself is empty
         if not file_result.transcript or not file_result.transcript.results or not file_result.transcript.results[0].alternatives:
             raise ValueError("Transcription completed but returned no text.")
         
         transcript = file_result.transcript.results[0].alternatives[0].transcript
         
-        # --- Cleanup ---
         audio_blob.delete()
         for blob in bucket.list_blobs(prefix=output_folder_name):
             blob.delete()
