@@ -8,6 +8,7 @@ from firebase_functions import https_fn, options
 
 # --- Google Cloud Client Libraries ---
 from google.cloud import storage
+from google.api_core import client_options
 from google.cloud.speech_v2 import SpeechClient
 from google.cloud.speech_v2.types import cloud_speech
 import vertexai
@@ -73,7 +74,10 @@ def _initialize_clients():
         storage_client = storage.Client()
 
     if speech_client is None:
-        speech_client = SpeechClient()
+        opts = client_options.ClientOptions(
+            api_endpoint="us-central1-speech.googleapis.com"
+        )
+        speech_client = SpeechClient(client_options=opts)
 
     if gemini_model is None:
         gemini_model = GenerativeModel("gemini-2.5-pro") 
