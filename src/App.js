@@ -471,7 +471,7 @@ function VoiceAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplete })
 
     const handleAnalyze = async () => {
         if (isRecording) await stopRecording();        // ensure Blob is finalized
-        if (audioChunks.length === 0 || audioChunks[0].size < 2000) {
+        if (audioChunks.length === 0 || audioChunks[0].size < 500) {
             setError('No usable audio recorded. Please speak for a few seconds and try again.');
             return;
         }

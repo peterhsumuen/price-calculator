@@ -337,14 +337,9 @@ def analyze_voice_recording(req: https_fn.Request) -> https_fn.Response:
         def _has_nonzero_error(fr):
             return bool(getattr(fr, "error", None) and getattr(fr.error, "code", 0) != 0)
 
-        # 2) Try stereo, then mono fallback
-        operation_result = _run_batch_recognize(channel_count=2)
+        # 2) Process audio as mono (since the frontend records in mono)
+        operation_result = _run_batch_recognize(channel_count=1)
         file_result = operation_result.results.get(gcs_uri)
-
-        if not file_result or _has_nonzero_error(file_result):
-            print("[analyze_voice_recording] Retry with mono…")
-            operation_result = _run_batch_recognize(channel_count=1)
-            file_result = operation_result.results.get(gcs_uri)
 
         if not file_result:
             raise ValueError(f"No result found for the audio file URI: {gcs_uri}")
