@@ -38,7 +38,7 @@ def _cors_headers_for(origin: str | None):
     if _is_allowed_origin(origin):
         headers["Access-Control-Allow-Origin"] = origin
     else:
-        headers["Access-Control-Allow-Origin"] = "*" # More permissive for simplicity
+        headers["Access-Control-Allow-Origin"] = "*"  # More permissive for simplicity (no credentials)
     return headers
 
 def _cors_preflight_headers(origin: str | None):
@@ -53,7 +53,14 @@ def _cors_preflight_headers(origin: str | None):
 # --- Lazy-Initialized Clients ---
 # We declare clients globally but only initialize them on the first function call.
 # This prevents deployment timeouts and is the recommended best practice.
-PROJECT_ID = os.environ.get("GCLOUD_PROJECT")
+PROJECT_ID = (
+    os.environ.get("GCLOUD_PROJECT")
+    or os.environ.get("GCP_PROJECT")
+    or json.loads(os.environ.get("FIREBASE_CONFIG", "{}")).get("projectId")
+)
+if not PROJECT_ID:
+    raise RuntimeError("PROJECT_ID not found in env (GCLOUD_PROJECT/GCP_PROJECT/FIREBASE_CONFIG).")
+
 LOCATION = "us-central1"
 
 speech_client = None
@@ -64,22 +71,22 @@ vertex_ai_initialized = False
 def _initialize_clients():
     """Initializes all API clients lazily."""
     global speech_client, gemini_model, storage_client, vertex_ai_initialized
-    
+
     if not vertex_ai_initialized:
         vertexai.init(project=PROJECT_ID, location=LOCATION)
         vertex_ai_initialized = True
-    
+
     if storage_client is None:
         storage_client = storage.Client()
 
     if speech_client is None:
         opts = client_options.ClientOptions(
-            api_endpoint="us-central1-speech.googleapis.com"
+            api_endpoint=f"{LOCATION}-speech.googleapis.com"
         )
         speech_client = speech_v2.SpeechClient(client_options=opts)
 
     if gemini_model is None:
-        gemini_model = GenerativeModel("gemini-2.5-pro") 
+        gemini_model = GenerativeModel("gemini-2.5-pro")
 
 # --- Helper Functions ---
 def _get_bucket_name():
@@ -104,12 +111,12 @@ def analyze_blueprint(req: https_fn.Request) -> https_fn.Response:
 
     if req.method == "OPTIONS":
         return https_fn.Response("", status=204, headers=_cors_preflight_headers(origin))
-    
+
     if req.method != "POST":
         return https_fn.Response("Method Not Allowed", status=405, headers=_cors_headers_for(origin))
 
     try:
-        _initialize_clients() # Ensure clients are ready
+        _initialize_clients()  # Ensure clients are ready
 
         # CORRECT: Moved prompt definition to the top so it exists before being used.
         prompt = """
@@ -166,9 +173,9 @@ def analyze_blueprint(req: https_fn.Request) -> https_fn.Response:
             return https_fn.Response("Missing fields", status=400, headers=_cors_headers_for(origin))
 
         raw_bytes, mime_type = _decode_data_uri(data["fileData"])
-        
+
         content_for_gemini = [prompt]
-        first_page_bytes = None # To store the first page for upload
+        first_page_bytes = None  # To store the first page for upload
 
         if mime_type.lower() == "application/pdf":
             with fitz.open(stream=raw_bytes, filetype="pdf") as doc:
@@ -177,25 +184,25 @@ def analyze_blueprint(req: https_fn.Request) -> https_fn.Response:
                     pix = page.get_pixmap(dpi=300)
                     image_bytes = pix.tobytes("png")
                     if page_num == 0:
-                        first_page_bytes = image_bytes # Save first page
+                        first_page_bytes = image_bytes  # Save first page
                     content_for_gemini.append(Part.from_data(data=image_bytes, mime_type="image/png"))
         else:
-            first_page_bytes = raw_bytes # It's just a single image
+            first_page_bytes = raw_bytes  # It's just a single image
             content_for_gemini.append(Part.from_data(data=raw_bytes, mime_type=mime_type))
 
         if not first_page_bytes:
-             raise ValueError("No image data could be processed for upload.")
+            raise ValueError("No image data could be processed for upload.")
 
         bucket_name = _get_bucket_name()
         bucket = storage_client.bucket(bucket_name)
         fname = f"blueprints/{data['userId']}/{uuid.uuid4()}.png"
         blob = bucket.blob(fname)
-        # CORRECT: Upload only the first page as a thumbnail.
+        # Upload only the first page as a thumbnail.
         blob.upload_from_string(first_page_bytes, content_type="image/png")
 
-        # CORRECT: Send the full list of content (prompt + all images) to Gemini.
+        # Send the full list of content (prompt + all images) to Gemini.
         response = gemini_model.generate_content(content_for_gemini)
-        
+
         raw_text = response.text.strip().replace("```json", "").replace("```", "")
         analysis = json.loads(raw_text)
 
@@ -205,7 +212,6 @@ def analyze_blueprint(req: https_fn.Request) -> https_fn.Response:
     except Exception as e:
         print(f"Error in analyze_blueprint: {e}")
         return https_fn.Response(json.dumps({"error": str(e)}), status=500, mimetype="application/json", headers=_cors_headers_for(origin))
-
 
 
 @https_fn.on_request(memory=4096, timeout_sec=540)
@@ -224,85 +230,89 @@ def analyze_voice_recording(req: https_fn.Request) -> https_fn.Response:
         data = req.get_json(silent=True) or {}
         if "audioData" not in data:
             return https_fn.Response(json.dumps({"error": "Bad Request: 'audioData' not found"}), status=400, mimetype="application/json", headers=_cors_headers_for(origin))
-        
-        audio_content, mime_type = _decode_data_uri(data["audioData"])
-        clean_mime_type = "audio/webm"
 
+        audio_content, mime_type = _decode_data_uri(data["audioData"])
         if not audio_content:
             return https_fn.Response(json.dumps({"error": "Bad Request: Audio data is empty"}), status=400, mimetype="application/json", headers=_cors_headers_for(origin))
-            
-        # 1. Upload audio to a temporary location in Google Cloud Storage
+
+        # Normalize to webm on upload (most browsers: WebM+Opus 48k, often stereo)
+        clean_mime_type = "audio/webm"
+
+        # 1) Upload audio to a temporary location in Google Cloud Storage
         bucket_name = _get_bucket_name()
         bucket = storage_client.bucket(bucket_name)
-        
+
         unique_id = uuid.uuid4()
         audio_file_name = f"audio_recordings/{unique_id}.webm"
-        output_folder_name = f"audio_transcripts/{unique_id}/"
-        
         gcs_uri = f"gs://{bucket_name}/{audio_file_name}"
-        gcs_output_uri = f"gs://{bucket_name}/{output_folder_name}"
 
         audio_blob = bucket.blob(audio_file_name)
         audio_blob.upload_from_string(audio_content, content_type=clean_mime_type)
 
-        # 2. Configure and start the asynchronous transcription job
-        recognizer_path = f"projects/{PROJECT_ID}/locations/us-central1/recognizers/_"
-        
-        # Explicitly define the audio encoding to prevent errors
-        explicit_config = speech_v2.ExplicitDecodingConfig(
-            encoding=speech_v2.ExplicitDecodingConfig.AudioEncoding.WEBM_OPUS,
-            sample_rate_hertz=48000,
-            audio_channel_count=1,
-        )
-        
-        features = speech_v2.RecognitionFeatures(enable_automatic_punctuation=True)
-        
-        recognition_config = speech_v2.RecognitionConfig(
-            explicit_decoding_config=explicit_config,
-            language_codes=["en-US"], 
-            model="long",
-            features=features
-        )
-        
-        # Tell the API where to save the transcript result
-        output_config = speech_v2.RecognitionOutputConfig(
-            gcs_output_config=speech_v2.GcsOutputConfig(uri=gcs_output_uri)
-        )
+        # === Helper to run a v2 BatchRecognize with a given channel count ===
+        def _run_batch_recognize(channel_count: int):
+            explicit_config = speech_v2.ExplicitDecodingConfig(
+                encoding=speech_v2.ExplicitDecodingConfig.AudioEncoding.WEBM_OPUS,
+                sample_rate_hertz=48000,          # Chrome MediaRecorder typical Opus rate
+                audio_channel_count=channel_count # try 2 first; fallback to 1
+            )
 
-        # Create and run the batch (asynchronous) recognition request
-        request = speech_v2.BatchRecognizeRequest(
-            recognizer=recognizer_path, 
-            config=recognition_config, 
-            files=[{"uri": gcs_uri}],
-            recognition_output_config=output_config
-        )
-        
-        operation = speech_client.batch_recognize(request=request)
-        
-        print("Waiting for transcription to complete...")
-        operation_result = operation.result(timeout=480) # Wait for the job to finish
-        
-        # 3. Retrieve the transcript from the result
+            features = speech_v2.RecognitionFeatures(
+                enable_automatic_punctuation=True
+            )
+
+            recognition_config = speech_v2.RecognitionConfig(
+                explicit_decoding_config=explicit_config,
+                language_codes=["en-US"],
+                model="latest_long",
+                features=features
+            )
+
+            # ⬇️ NEW: ask for inline response instead of GCS output
+            output_config = speech_v2.RecognitionOutputConfig(
+                inline_response_config=speech_v2.InlineOutputConfig()
+            )
+
+            request = speech_v2.BatchRecognizeRequest(
+                recognizer=f"projects/{PROJECT_ID}/locations/{LOCATION}/recognizers/_",
+                config=recognition_config,
+                files=[speech_v2.BatchRecognizeFileMetadata(uri=gcs_uri)],
+                recognition_output_config=output_config
+            )
+
+            op = speech_client.batch_recognize(request=request)
+            return op.result(timeout=480)
+
+        # 2) Try stereo (2), then fallback to mono (1) once if needed
+        operation_result = _run_batch_recognize(channel_count=2)
         file_result = operation_result.results.get(gcs_uri)
+
+        def _has_nonzero_error(fr):
+            return bool(getattr(fr, "error", None) and getattr(fr.error, "code", 0) != 0)
+
+        if not file_result or _has_nonzero_error(file_result):
+            operation_result = _run_batch_recognize(channel_count=1)
+            file_result = operation_result.results.get(gcs_uri)
 
         if not file_result:
             raise ValueError(f"No result found for the audio file URI: {gcs_uri}")
 
-        if file_result.error:
-            error_message = f"Speech API error code {file_result.error.code}: {file_result.error.message}"
-            raise ValueError(error_message)
-        
-        if not file_result.transcript or not file_result.transcript.results or not file_result.transcript.results[0].alternatives:
-            raise ValueError("Transcription completed but returned no text.")
-        
-        transcript = file_result.transcript.results[0].alternatives[0].transcript
-        
-        # 4. Clean up temporary files from Cloud Storage
-        audio_blob.delete()
-        for blob in bucket.list_blobs(prefix=output_folder_name):
-            blob.delete()
+        if _has_nonzero_error(file_result):
+            raise ValueError(f"Speech API error code {file_result.error.code}: {file_result.error.message}")
 
-        # --- Gemini analysis prompt (remains the same) ---
+        # Extract transcript from inline results
+        if not getattr(file_result, "transcript", None) or not file_result.transcript.results:
+            raise ValueError("Transcription completed but returned no text.")
+
+        alts = file_result.transcript.results[0].alternatives
+        if not alts:
+            raise ValueError("No alternatives returned.")
+        transcript = alts[0].transcript
+
+        # 3) Clean up temporary audio file
+        audio_blob.delete()
+
+        # --- Gemini analysis prompt (same as yours) ---
         prompt = f"""
         Analyze the following transcribed text from a client meeting. Your task is to first extract key project details into a JSON format. 
 
@@ -345,7 +355,7 @@ def analyze_voice_recording(req: https_fn.Request) -> https_fn.Response:
             "Project Description": "...",
             "Project Address": "...",
             "Client Name": "...",
-            **"Scope of Work": "...",**
+            "Scope of Work": "...",
             "Remodeling place and size": {{
                 "Full gut": null,
                 "Additional building/ new construction": null,
@@ -363,7 +373,7 @@ def analyze_voice_recording(req: https_fn.Request) -> https_fn.Response:
             "Occupancy Group": "..."
         }}
         """
-        
+
         full_prompt_for_gemini = f"{prompt}\n\nTranscribed Text:\n{transcript}"
 
         gemini_response = gemini_model.generate_content(
@@ -378,3 +388,4 @@ def analyze_voice_recording(req: https_fn.Request) -> https_fn.Response:
     except Exception as e:
         print(f"Error in analyze_voice_recording: {e}")
         return https_fn.Response(json.dumps({"error": str(e)}), status=500, mimetype="application/json", headers=_cors_headers_for(origin))
+
