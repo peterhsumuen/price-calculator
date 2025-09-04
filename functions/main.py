@@ -229,32 +229,83 @@ def analyze_voice_recording(req: https_fn.Request) -> https_fn.Response:
 
         data = req.get_json(silent=True) or {}
         if "audioData" not in data:
-            return https_fn.Response(json.dumps({"error": "Bad Request: 'audioData' not found"}), status=400, mimetype="application/json", headers=_cors_headers_for(origin))
+            return https_fn.Response(
+                json.dumps({"error": "Bad Request: 'audioData' not found"}),
+                status=400, mimetype="application/json", headers=_cors_headers_for(origin)
+            )
 
+        # Decode the data URI and capture the original mime
         audio_content, mime_type = _decode_data_uri(data["audioData"])
         if not audio_content:
-            return https_fn.Response(json.dumps({"error": "Bad Request: Audio data is empty"}), status=400, mimetype="application/json", headers=_cors_headers_for(origin))
+            return https_fn.Response(
+                json.dumps({"error": "Bad Request: Audio data is empty"}),
+                status=400, mimetype="application/json", headers=_cors_headers_for(origin)
+            )
 
-        # Normalize to webm on upload (most browsers: WebM+Opus 48k, often stereo)
-        clean_mime_type = "audio/webm"
+        # Inspect the incoming mime; many browsers give variants like:
+        # - "audio/webm;codecs=opus"
+        # - "audio/ogg;codecs=opus"
+        # - "audio/mp4" or "audio/m4a" (AAC)  <-- not supported by v2 decoders
+        mime_lower = (mime_type or "").lower()
+        print(f"[analyze_voice_recording] Incoming mime: {mime_lower}, bytes={len(audio_content)}")
+
+        # Decide container/codec for v2 ExplicitDecodingConfig
+        # Supported by v2: WEBM_OPUS, OGG_OPUS, FLAC, MP3, LINEAR16 (WAV), etc.
+        if "webm" in mime_lower:
+            decoding_encoding = speech_v2.ExplicitDecodingConfig.AudioEncoding.WEBM_OPUS
+        elif "ogg" in mime_lower:
+            decoding_encoding = speech_v2.ExplicitDecodingConfig.AudioEncoding.OGG_OPUS
+        elif "mp4" in mime_lower or "m4a" in mime_lower or "aac" in mime_lower:
+            # v2 doesn't have an MP4/AAC explicit decoding enum. You must transcode server-side
+            # (e.g., to LINEAR16) or record as WebM Opus from the browser.
+            return https_fn.Response(
+                json.dumps({
+                    "error": (
+                        "Your browser produced MP4/M4A (AAC), which Speech v2 cannot decode directly. "
+                        "Please record as WebM Opus (recommended) or transcode to WAV/LINEAR16 on the server "
+                        "before sending to Speech v2."
+                    ),
+                    "hint": "Use MediaRecorder with mimeType 'audio/webm;codecs=opus' on Chrome/Edge. iOS Safari usually produces AAC."
+                }),
+                status=400, mimetype="application/json", headers=_cors_headers_for(origin)
+            )
+        else:
+            # Unknown container: we can still try WEBM_OPUS as a guess, but better to fail clearly.
+            return https_fn.Response(
+                json.dumps({
+                    "error": f"Unsupported audio container: {mime_type}",
+                    "hint": "Use 'audio/webm;codecs=opus' or 'audio/ogg;codecs=opus'."
+                }),
+                status=400, mimetype="application/json", headers=_cors_headers_for(origin)
+            )
 
         # 1) Upload audio to a temporary location in Google Cloud Storage
         bucket_name = _get_bucket_name()
         bucket = storage_client.bucket(bucket_name)
 
         unique_id = uuid.uuid4()
-        audio_file_name = f"audio_recordings/{unique_id}.webm"
+        # Preserve an extension that matches the container, purely for sanity
+        if decoding_encoding == speech_v2.ExplicitDecodingConfig.AudioEncoding.WEBM_OPUS:
+            ext = "webm"
+            upload_mime = "audio/webm"
+        else:
+            ext = "ogg"
+            upload_mime = "audio/ogg"
+
+        audio_file_name = f"audio_recordings/{unique_id}.{ext}"
         gcs_uri = f"gs://{bucket_name}/{audio_file_name}"
 
         audio_blob = bucket.blob(audio_file_name)
-        audio_blob.upload_from_string(audio_content, content_type=clean_mime_type)
+        audio_blob.upload_from_string(audio_content, content_type=upload_mime)
+        print(f"[analyze_voice_recording] Uploaded to {gcs_uri}")
 
-        # === Helper to run a v2 BatchRecognize with a given channel count ===
+        # Helper to run BatchRecognize with a given channel count (2 -> 1 fallback)
         def _run_batch_recognize(channel_count: int):
+            # Most Opus recordings are 48kHz; if your recorder is 44100, change this.
             explicit_config = speech_v2.ExplicitDecodingConfig(
-                encoding=speech_v2.ExplicitDecodingConfig.AudioEncoding.WEBM_OPUS,
-                sample_rate_hertz=48000,          # Chrome MediaRecorder typical Opus rate
-                audio_channel_count=channel_count # try 2 first; fallback to 1
+                encoding=decoding_encoding,
+                sample_rate_hertz=48000,           # Opus typically 48000; adjust if you know yours is different
+                audio_channel_count=channel_count   # try 2 first, then 1
             )
 
             features = speech_v2.RecognitionFeatures(
@@ -268,7 +319,7 @@ def analyze_voice_recording(req: https_fn.Request) -> https_fn.Response:
                 features=features
             )
 
-            # ⬇️ NEW: ask for inline response instead of GCS output
+            # v2 requires an output config; we'll use inline to avoid GCS perms
             output_config = speech_v2.RecognitionOutputConfig(
                 inline_response_config=speech_v2.InlineOutputConfig()
             )
@@ -283,14 +334,15 @@ def analyze_voice_recording(req: https_fn.Request) -> https_fn.Response:
             op = speech_client.batch_recognize(request=request)
             return op.result(timeout=480)
 
-        # 2) Try stereo (2), then fallback to mono (1) once if needed
-        operation_result = _run_batch_recognize(channel_count=2)
-        file_result = operation_result.results.get(gcs_uri)
-
         def _has_nonzero_error(fr):
             return bool(getattr(fr, "error", None) and getattr(fr.error, "code", 0) != 0)
 
+        # 2) Try stereo, then mono fallback
+        operation_result = _run_batch_recognize(channel_count=2)
+        file_result = operation_result.results.get(gcs_uri)
+
         if not file_result or _has_nonzero_error(file_result):
+            print("[analyze_voice_recording] Retry with mono…")
             operation_result = _run_batch_recognize(channel_count=1)
             file_result = operation_result.results.get(gcs_uri)
 
@@ -300,17 +352,27 @@ def analyze_voice_recording(req: https_fn.Request) -> https_fn.Response:
         if _has_nonzero_error(file_result):
             raise ValueError(f"Speech API error code {file_result.error.code}: {file_result.error.message}")
 
-        # Extract transcript from inline results
+        # Extract transcript
         if not getattr(file_result, "transcript", None) or not file_result.transcript.results:
-            raise ValueError("Transcription completed but returned no text.")
+            # If we got here, decoding might have succeeded but the audio was near-silence or too short
+            # (or sample rate didn't actually match). Surface a clearer error for debugging.
+            raise ValueError(
+                "Transcription completed but returned no text. "
+                "Possible causes: near-silence/very short audio, wrong sample_rate_hertz, or a codec/container mismatch."
+            )
 
         alts = file_result.transcript.results[0].alternatives
         if not alts:
             raise ValueError("No alternatives returned.")
+
         transcript = alts[0].transcript
+        print(f"[analyze_voice_recording] Transcript length: {len(transcript)}")
 
         # 3) Clean up temporary audio file
-        audio_blob.delete()
+        try:
+            audio_blob.delete()
+        except Exception as _:
+            pass
 
         # --- Gemini analysis prompt (same as yours) ---
         prompt = f"""
@@ -383,9 +445,10 @@ def analyze_voice_recording(req: https_fn.Request) -> https_fn.Response:
         analysis_json = json.loads(gemini_response.text)
 
         response_data = {"transcript": transcript, "analysis": analysis_json}
-        return https_fn.Response(json.dumps(response_data, indent=2), status=200, mimetype="application/json", headers=_cors_headers_for(origin))
+        return https_fn.Response(json.dumps(response_data, indent=2), status=200,
+                                 mimetype="application/json", headers=_cors_headers_for(origin))
 
     except Exception as e:
         print(f"Error in analyze_voice_recording: {e}")
-        return https_fn.Response(json.dumps({"error": str(e)}), status=500, mimetype="application/json", headers=_cors_headers_for(origin))
-
+        return https_fn.Response(json.dumps({"error": str(e)}), status=500,
+                                 mimetype="application/json", headers=_cors_headers_for(origin))
