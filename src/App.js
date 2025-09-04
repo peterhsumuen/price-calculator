@@ -60,7 +60,7 @@ const PRICING_RULES = {
 };
 
 // Price Calculator Component
-function PriceCalculator({ user, onLogout, onPageChange, initialData, scopeOfWork }) {
+function PriceCalculator({ user, onLogout, onPageChange, initialData }) {
     const [items, setItems] = useState([{ id: uuidv4(), type: '', sf: '' }]);
     const [totalPrice, setTotalPrice] = useState(0);
     const [projectName, setProjectName] = useState('');
@@ -103,12 +103,6 @@ function PriceCalculator({ user, onLogout, onPageChange, initialData, scopeOfWor
             setEditingProjectId(null);
         }
     }, [initialData]);
-
-    useEffect(() => {
-        if (scopeOfWork) {
-            setScopeOfWorkText(scopeOfWork);
-        }
-    }, [scopeOfWork]);
 
     useEffect(() => {
         let total = 0;
@@ -371,9 +365,6 @@ function BlueprintAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplet
             if (!response.ok) throw new Error(parsed.details || 'The server returned an error.');
             setAnalysisResult(parsed.analysisResult || {});
             setUploadedBlueprintUrl(parsed.blueprintUrl || null);
-            if (parsed.analysisResult && parsed.analysisResult.ScopeOfWork) {
-                onAnalysisComplete(parsed.analysisResult.ScopeOfWork);
-            }
         } catch (err) { setError(`Analysis failed: ${err.message}`); } finally { setIsAnalyzing(false); }
     };
 
@@ -490,10 +481,6 @@ function VoiceAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplete })
                 setSummary(summaryText);
 
                 setTranscript(result.transcript);
-                
-                if (result.analysis && result.analysis['Scope of Work']) {
-                    onAnalysisComplete(result.analysis['Scope of Work']);
-                }
 
             } catch (err) {
                 setError(`Analysis failed: ${err.message}`);
@@ -502,6 +489,22 @@ function VoiceAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplete })
                 setAudioChunks([]);
             }
         };
+    };
+
+    const handleUseInCalculator = () => {
+        if (!analysisResult) return;
+        const remodelingItems = analysisResult["Remodeling place and size"] || {};
+        // Filter out any keys that have a null value from the analysis
+        const filteredItems = Object.fromEntries(Object.entries(remodelingItems).filter(([, value]) => value !== null));
+        const dataForCalculator = {
+            projectName: analysisResult["Project Name"] || '',
+            address: analysisResult["Project Address"] || '',
+            clientName: analysisResult["Client Name"] || '',
+            scopeOfWork: analysisResult["Scope of Work"] || '',
+            items: filteredItems,
+            analysisResult: analysisResult
+        };
+        onPageChange('calculator', dataForCalculator);
     };
 
     return (
@@ -531,6 +534,11 @@ function VoiceAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplete })
                 {transcript && <div className="mt-6"><h3>Transcript:</h3><p className="bg-base-200 p-2 rounded-box">{transcript}</p></div>}
                 {analysisResult && <div className="mt-4"><h3>Analysis Results:</h3><pre className="bg-base-200 p-2 rounded-box">{JSON.stringify(analysisResult, null, 2)}</pre></div>}
                 {summary && <div className="mt-4"><h3>Summary:</h3><p className="bg-base-200 p-2 rounded-box">{summary}</p></div>}
+                {analysisResult && (
+                    <button onClick={handleUseInCalculator} className="btn btn-primary btn-outline mt-4">
+                        Use in Calculator
+                    </button>
+                )}
             </div>
         </div>
     );
@@ -599,7 +607,7 @@ export default function App() {
     const [loading, setLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState('calculator');
     const [dataForCalculator, setDataForCalculator] = useState(null);
-    const [scopeOfWork, setScopeOfWork] = useState('');
+    
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -621,14 +629,18 @@ export default function App() {
     };
 
     const renderPage = () => {
-        switch (currentPage) {
-            case 'calculator': return <PriceCalculator user={user} onLogout={handleLogout} onPageChange={handlePageChange} initialData={dataForCalculator} scopeOfWork={scopeOfWork} />;
-            case 'records': return <RecordsPage user={user} onLogout={handleLogout} onPageChange={handlePageChange} />;
-            case 'analyzer': return <BlueprintAnalyzerPage user={user} onLogout={handleLogout} onPageChange={handlePageChange} onAnalysisComplete={setScopeOfWork} />;
-            case 'voiceAnalyzer': return <VoiceAnalyzerPage user={user} onLogout={handleLogout} onPageChange={handlePageChange} onAnalysisComplete={setScopeOfWork} />;
-            default: return <PriceCalculator user={user} onLogout={handleLogout} onPageChange={handlePageChange} initialData={dataForCalculator} scopeOfWork={scopeOfWork} />;
-        }
-    };
+    switch (currentPage) {
+        // REMOVED scopeOfWork={scopeOfWork} from PriceCalculator
+        case 'calculator': return <PriceCalculator user={user} onLogout={handleLogout} onPageChange={handlePageChange} initialData={dataForCalculator} />;
+        case 'records': return <RecordsPage user={user} onLogout={handleLogout} onPageChange={handlePageChange} />;
+        // REMOVED onAnalysisComplete={setScopeOfWork} from BlueprintAnalyzerPage
+        case 'analyzer': return <BlueprintAnalyzerPage user={user} onLogout={handleLogout} onPageChange={handlePageChange} />;
+        // REMOVED onAnalysisComplete={setScopeOfWork} from VoiceAnalyzerPage
+        case 'voiceAnalyzer': return <VoiceAnalyzerPage user={user} onLogout={handleLogout} onPageChange={handlePageChange} />;
+        // REMOVED scopeOfWork={scopeOfWork} from the default case
+        default: return <PriceCalculator user={user} onLogout={handleLogout} onPageChange={handlePageChange} initialData={dataForCalculator} />;
+    }
+};
 
     return (
         <>
