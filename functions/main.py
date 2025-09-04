@@ -8,6 +8,7 @@ from firebase_functions import https_fn, options
 
 # --- Google Cloud Client Libraries ---
 from google.cloud import storage
+from google.api_core import client_options
 from google.cloud.speech_v2 import SpeechClient
 from google.cloud.speech_v2.types import cloud_speech
 import vertexai
@@ -73,7 +74,10 @@ def _initialize_clients():
         storage_client = storage.Client()
 
     if speech_client is None:
-        speech_client = SpeechClient()
+        opts = client_options.ClientOptions(
+            api_endpoint="us-central1-speech.googleapis.com"
+        )
+        speech_client = SpeechClient(client_options=opts)
 
     if gemini_model is None:
         gemini_model = GenerativeModel("gemini-2.5-pro") 
@@ -242,7 +246,12 @@ def analyze_voice_recording(req: https_fn.Request) -> https_fn.Response:
 
         **Instructions for JSON Output:**
         - Fill in each key based on the information provided in the conversation.
-        - **`Scope of Work`: Create a shorter version summary of the main project goals discussed. This should be a concise version of the main summary below.**
+        - ** `Scope of Work`: **Act as a project manager writing a formal Scope of Work for a homeowner. Using all provided blueprint pages, create a thorough, step-by-step description of the entire project. Structure the output by area or room. For each location, use clear headings (e.g., Kitchen Remodel, Second Floor Addition, Exterior Work) and detail the following in plain language:
+                - Demolition: Clearly state what existing structures will be removed.
+                - Construction & Framing: Describe all new construction.
+                - Mechanical, Electrical & Plumbing (MEP): Detail any new installations or relocations shown on the plans.
+                - Finishes & Fixtures: List all new finishes and permanent fixtures.
+                - Ensure the final text is a comprehensive narrative that walks the homeowner through the entire construction journey from start to finish.**
 
         **JSON Output format:**
         {{
