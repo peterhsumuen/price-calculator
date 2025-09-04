@@ -53,7 +53,7 @@ def _cors_preflight_headers(origin: str | None):
 # --- Lazy-Initialized Clients ---
 # We declare clients globally but only initialize them on the first function call.
 # This prevents deployment timeouts and is the recommended best practice.
-PROJECT_ID = os.environ.get("GCP_PROJECT")
+PROJECT_ID = os.environ.get("GCLOUD_PROJECT")
 LOCATION = "us-central1"
 
 speech_client = None
