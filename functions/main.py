@@ -208,7 +208,7 @@ def analyze_blueprint(req: https_fn.Request) -> https_fn.Response:
 
 
 
-@https_fn.on_request(memory=2048, timeout_sec=540)
+@https_fn.on_request(memory=4096, timeout_sec=540)
 def analyze_voice_recording(req: https_fn.Request) -> https_fn.Response:
     origin = req.headers.get("Origin")
 
