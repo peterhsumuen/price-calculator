@@ -209,7 +209,7 @@ def analyze_blueprint(req: https_fn.Request) -> https_fn.Response:
 
 
 
-@https_fn.on_request(memory=2048)
+@https_fn.on_request(memory=2048, timeout_sec=540) # Increased timeout for longer processing
 def analyze_voice_recording(req: https_fn.Request) -> https_fn.Response:
     origin = req.headers.get("Origin")
 
@@ -224,23 +224,45 @@ def analyze_voice_recording(req: https_fn.Request) -> https_fn.Response:
 
         data = req.get_json(silent=True) or {}
         if "audioData" not in data:
-            return https_fn.Response(json.dumps({"error": "Bad Request: 'audioData' not found in JSON payload"}), status=400, mimetype="application/json", headers=_cors_headers_for(origin))
+            return https_fn.Response(json.dumps({"error": "Bad Request: 'audioData' not found"}), status=400, mimetype="application/json", headers=_cors_headers_for(origin))
         
-        # Decode the base64 data URI from the frontend
-        audio_content, _ = _decode_data_uri(data["audioData"])
+        audio_content, mime_type = _decode_data_uri(data["audioData"])
         if not audio_content:
             return https_fn.Response(json.dumps({"error": "Bad Request: Audio data is empty"}), status=400, mimetype="application/json", headers=_cors_headers_for(origin))
             
+        # 1. Upload audio to Google Cloud Storage
+        bucket_name = _get_bucket_name()
+        bucket = storage_client.bucket(bucket_name)
+        file_extension = mime_type.split('/')[-1].split(';')[0]
+        fname = f"audio_recordings/{uuid.uuid4()}.{file_extension}"
+        blob = bucket.blob(fname)
+        blob.upload_from_string(audio_content, content_type=mime_type)
+        gcs_uri = f"gs://{bucket_name}/{fname}"
+
+        # 2. Call the ASYNCHRONOUS Speech-to-Text API
         recognizer_path = f"projects/{PROJECT_ID}/locations/us-central1/recognizers/_"
         recognition_config = cloud_speech.RecognitionConfig(auto_decoding_config={}, language_codes=["en-US"], model="chirp")
-        request = cloud_speech.RecognizeRequest(recognizer=recognizer_path, config=recognition_config, content=audio_content)
         
-        transcription_response = speech_client.recognize(request=request)
+        # Use a long-running request with the GCS URI
+        request = cloud_speech.LongRunningRecognizeRequest(
+            recognizer=recognizer_path, 
+            config=recognition_config, 
+            files=[{"uri": gcs_uri}]
+        )
+        
+        operation = speech_client.long_running_recognize(request=request)
+        
+        print("Waiting for transcription to complete...")
+        transcription_response = operation.result(timeout=480) # Wait for the result
+        
+        # 3. Clean up the audio file from storage after processing
+        blob.delete()
+
         if not transcription_response.results or not transcription_response.results[0].alternatives:
              raise ValueError("Transcription failed or returned empty.")
         transcript = transcription_response.results[0].alternatives[0].transcript
 
-        # --- This part for Gemini analysis remains the same ---
+        # --- Gemini analysis prompt (remains the same) ---
         prompt = f"""
         Analyze the following transcribed text from a client meeting. Your task is to first extract key project details into a JSON format. 
 
@@ -300,10 +322,8 @@ def analyze_voice_recording(req: https_fn.Request) -> https_fn.Response:
             "Type of Construction": "...",
             "Occupancy Group": "..."
         }}
-
         """
         
-        # Create a combined text for Gemini
         full_prompt_for_gemini = f"{prompt}\n\nTranscribed Text:\n{transcript}"
 
         gemini_response = gemini_model.generate_content(
