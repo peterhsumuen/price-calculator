@@ -227,7 +227,7 @@ def analyze_voice_recording(req: https_fn.Request) -> https_fn.Response:
         if not audio_content:
             return https_fn.Response(json.dumps({"error": "Bad Request: Audio data is empty"}), status=400, mimetype="application/json", headers=_cors_headers_for(origin))
             
-        recognizer_path = f"projects/{PROJECT_ID}/locations/global/recognizers/_"
+        recognizer_path = f"projects/{PROJECT_ID}/locations/us-central1/recognizers/_"
         recognition_config = cloud_speech.RecognitionConfig(auto_decoding_config={}, language_codes=["en-US"], model="chirp")
         request = cloud_speech.RecognizeRequest(recognizer=recognizer_path, config=recognition_config, content=audio_content)
         
