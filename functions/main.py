@@ -7,8 +7,8 @@ import firebase_admin
 from firebase_functions import https_fn, options
 
 # --- Google Cloud Client Libraries ---
-from google.cloud import storage
 from google.api_core import client_options
+from google.cloud import storage
 from google.cloud import speech_v2
 import vertexai
 from vertexai.generative_models import GenerativeModel, GenerationConfig, Part
@@ -208,7 +208,7 @@ def analyze_blueprint(req: https_fn.Request) -> https_fn.Response:
 
 
 
-@https_fn.on_request(memory=2048, timeout_sec=540) # Increased timeout for longer processing
+@https_fn.on_request(memory=2048, timeout_sec=540)
 def analyze_voice_recording(req: https_fn.Request) -> https_fn.Response:
     origin = req.headers.get("Origin")
 
@@ -219,7 +219,7 @@ def analyze_voice_recording(req: https_fn.Request) -> https_fn.Response:
         return https_fn.Response("Method Not Allowed", status=405, headers=_cors_headers_for(origin))
 
     try:
-        _initialize_clients() # Ensure clients are ready
+        _initialize_clients()
 
         data = req.get_json(silent=True) or {}
         if "audioData" not in data:
@@ -229,46 +229,58 @@ def analyze_voice_recording(req: https_fn.Request) -> https_fn.Response:
         if not audio_content:
             return https_fn.Response(json.dumps({"error": "Bad Request: Audio data is empty"}), status=400, mimetype="application/json", headers=_cors_headers_for(origin))
             
-        # 1. Upload audio to Google Cloud Storage
         bucket_name = _get_bucket_name()
         bucket = storage_client.bucket(bucket_name)
-        file_extension = mime_type.split('/')[-1].split(';')[0]
-        fname = f"audio_recordings/{uuid.uuid4()}.{file_extension}"
-        blob = bucket.blob(fname)
-        blob.upload_from_string(audio_content, content_type=mime_type)
-        gcs_uri = f"gs://{bucket_name}/{fname}"
-
-        # 2. Call the ASYNCHRONOUS Speech-to-Text API
-        recognizer_path = f"projects/{PROJECT_ID}/locations/us-central1/recognizers/_"
-        recognition_config = speech_v2.cloud_speech.RecognitionConfig(auto_decoding_config={}, language_codes=["en-US"], model="chirp")
         
-        # Use a long-running request with the GCS URI
-        request = speech_v2.cloud_speech.LongRunningRecognizeRequest(
+        # --- Step 1: Define paths for audio input and transcript output ---
+        unique_id = uuid.uuid4()
+        file_extension = mime_type.split('/')[-1].split(';')[0]
+        audio_file_name = f"audio_recordings/{unique_id}.{file_extension}"
+        output_folder_name = f"audio_transcripts/{unique_id}/"
+        
+        gcs_uri = f"gs://{bucket_name}/{audio_file_name}"
+        gcs_output_uri = f"gs://{bucket_name}/{output_folder_name}"
+
+        # --- Step 2: Upload the audio file to Cloud Storage ---
+        audio_blob = bucket.blob(audio_file_name)
+        audio_blob.upload_from_string(audio_content, content_type=mime_type)
+
+        recognizer_path = f"projects/{PROJECT_ID}/locations/us-central1/recognizers/_"
+        
+        recognition_config = speech_v2.RecognitionConfig(auto_decoding_config={}, language_codes=["en-US"], model="chirp")
+        
+        # --- Step 3: Create the required output configuration ---
+        output_config = speech_v2.RecognitionOutputConfig(
+            gcs_output_config=speech_v2.GcsOutputConfig(uri=gcs_output_uri)
+        )
+
+        request = speech_v2.BatchRecognizeRequest(
             recognizer=recognizer_path, 
             config=recognition_config, 
-            files=[{"uri": gcs_uri}]
+            files=[{"uri": gcs_uri}],
+            recognition_output_config=output_config
         )
         
-        operation = speech_client.long_running_recognize(request=request)
+        operation = speech_client.batch_recognize(request=request)
         
         print("Waiting for transcription to complete...")
-        transcription_response = operation.result(timeout=480) # Wait for the result
+        operation_result = operation.result(timeout=480)
         
-        # 3. Clean up the audio file from storage after processing
-        blob.delete()
-
-        if not transcription_response.results or not transcription_response.results[0].alternatives:
+        # --- Step 4: Extract transcript from the result ---
+        file_result = operation_result.results[gcs_uri]
+        if not file_result.transcript or not file_result.transcript.results or not file_result.transcript.results[0].alternatives:
              raise ValueError("Transcription failed or returned empty.")
-        transcript = transcription_response.results[0].alternatives[0].transcript
+        transcript = file_result.transcript.results[0].alternatives[0].transcript
+
+        # --- Step 5: Clean up temporary files from storage ---
+        audio_blob.delete()
+        for blob in bucket.list_blobs(prefix=output_folder_name):
+            blob.delete()
 
         # --- Gemini analysis prompt (remains the same) ---
         prompt = f"""
-        Analyze the following transcribed text from a client meeting. Your task is to first extract key project details into a JSON format. 
-
-        Your primary goal is to analyze all provided transcribed text to generate a clear "Scope of Work". After that, fill in any other details you can find. Your task is to extract all information and format it into a precise JSON structure.
-
+        Analyze the following transcribed text from a client meeting. Your task is to first extract key project details into a JSON format. Your task is to extract all information and format it into a precise JSON structure.
         Follow these instructions carefully for each key:
-
         1.  **Top-Level Keys:**
             * `Project Name`: **Find the project's title, often the first line of the project description.**
             * `Project Description`: **Summary of the blueprint in a big scope like bathroom remodeling, kitchen remodeling...**
@@ -283,7 +295,6 @@ def analyze_voice_recording(req: https_fn.Request) -> https_fn.Response:
                 - Mechanical, Electrical & Plumbing (MEP): Detail any new installations or relocations shown on the plans.
                 - Finishes & Fixtures: List all new finishes and permanent fixtures.
                 - Ensure the final text is a comprehensive narrative that walks the homeowner through the entire construction journey from start to finish.**
-                
         2.  **Nested "Remodeling place and size" Object:**
             - `Full gut`: Do not fill in this unless it says Full gut or whole house remodeling on the plan.
             - `Additional building/ new construction`: Look for areas marked "ADDITION" or "NEW". Calculate their total square footage.
@@ -295,31 +306,12 @@ def analyze_voice_recording(req: https_fn.Request) -> https_fn.Response:
             - `Bedroom`: Find any area labeled "BEDROOM" and use its size. 
             - `Landscape`: Look for landscaping plans.
             - If there are multiple rooms of the same type, add their sizes together.
-
         Your final output must be ONLY a single, valid JSON object. Do not add any other text or explanations.
-
         **JSON Output format:**
         {{
-            "Project Name": "...",
-            "Project Description": "...",
-            "Project Address": "...",
-            "Client Name": "...",
-            **"Scope of Work": "...",**
-            "Remodeling place and size": {{
-                "Full gut": null,
-                "Additional building/ new construction": null,
-                "Structural Wall removal": null,
-                "2nd Structural Wall removal": null,
-                "Kitchen": null,
-                "Bathroom": null,
-                "Living room": null,
-                "Garage": null,
-                "Bedroom": null,
-                "Landscape": null
-            }},
-            "Zone District": "...",
-            "Type of Construction": "...",
-            "Occupancy Group": "..."
+            "Project Name": "...", "Project Description": "...", "Project Address": "...", "Client Name": "...", "Scope of Work": "...",
+            "Remodeling place and size": {{"Full gut": null, "Additional building/ new construction": null, "Structural Wall removal": null, "2nd Structural Wall removal": null, "Kitchen": null, "Bathroom": null, "Living room": null, "Garage": null, "Bedroom": null, "Landscape": null}},
+            "Zone District": "...", "Type of Construction": "...", "Occupancy Group": "..."
         }}
         """
         
