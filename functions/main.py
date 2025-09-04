@@ -246,9 +246,18 @@ def analyze_voice_recording(req: https_fn.Request) -> https_fn.Response:
 
         recognizer_path = f"projects/{PROJECT_ID}/locations/us-central1/recognizers/_"
         
+        # --- FINAL FIX: Explicitly define the audio encoding ---
+        # Instead of relying on auto-detection, we specify the exact format.
+        explicit_config = speech_v2.ExplicitDecodingConfig(
+            encoding=speech_v2.ExplicitDecodingConfig.AudioEncoding.WEBM_OPUS,
+            sample_rate_hertz=48000,  # Common for browser recordings
+            audio_channel_count=1,
+        )
+        
         features = speech_v2.RecognitionFeatures(enable_automatic_punctuation=True)
+        
         recognition_config = speech_v2.RecognitionConfig(
-            auto_decoding_config={}, 
+            explicit_decoding_config=explicit_config, # Use explicit config instead of auto
             language_codes=["en-US"], 
             model="chirp",
             features=features
@@ -269,11 +278,6 @@ def analyze_voice_recording(req: https_fn.Request) -> https_fn.Response:
         
         print("Waiting for transcription to complete...")
         operation_result = operation.result(timeout=480)
-        
-        # --- NEW: Log the entire raw response for debugging ---
-        print(f"--- FULL SPEECH API RESPONSE ---")
-        print(operation_result)
-        print(f"------------------------------")
         
         file_result = operation_result.results.get(gcs_uri)
 
