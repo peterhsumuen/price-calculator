@@ -88,7 +88,11 @@ function PriceCalculator({ user, onLogout, onPageChange, initialData }) {
             } else if (typeof initialData.items === 'object' && initialData.items !== null) {
                 itemsToSet = Object.entries(initialData.items)
                     .filter(([key]) => PRICING_RULES[key] !== undefined)
-                    .map(([type, sf]) => ({ id: uuidv4(), type, sf: sf.toString() }));
+                    .map(([type, sf]) => ({
+                        id: uuidv4(),
+                        type,
+                        sf: parseFloat(sf) || ''
+                    }));
             }
 
             setItems(itemsToSet && itemsToSet.length > 0 ? itemsToSet : [{ id: uuidv4(), type: '', sf: '' }]);
@@ -429,7 +433,7 @@ function VoiceAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplete })
     const startRecording = async () => {
         setAudioChunks([]);
         setError('');
-        
+
         try {
             const mime = (window.MediaRecorder?.isTypeSupported?.('audio/webm;codecs=opus'))
                 ? 'audio/webm;codecs=opus'
