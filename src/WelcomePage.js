@@ -2,6 +2,7 @@ import React from 'react';
 import Orb from './Orb';
 import ShinyText from './ShinyText';
 import GradientText from './GradientText';
+import StarBorder from './StarBorder'; // Import the new component
 import './App.css'; 
 
 function WelcomePage({ onGetStarted, onLearnMore }) {
@@ -25,17 +26,24 @@ function WelcomePage({ onGetStarted, onLearnMore }) {
         
         <div className="text-lg md:text-xl mb-8 max-w-2xl">
           <GradientText showBorder={true}>
-            Your AI co-pilot for construction bidding. Go from blueprint to bid in minutes with powerful tools for blueprint and voice analysis, ensuring unparalleled accuracy for your next project.
+            <span className="inline-block p-4">
+              Your AI co-pilot for construction bidding. Go from blueprint to bid in minutes with powerful tools for blueprint and voice analysis, ensuring unparalleled accuracy for your next project.
+            </span>
           </GradientText>
         </div>
 
         <div className="flex gap-4">
-          <button
+          {/* Replace the original button with the StarBorder component */}
+          <StarBorder
             onClick={onGetStarted}
             className="btn btn-primary btn-lg"
+            speed="4.5s"
+            thickness={1.5}
+            color="white"
           >
             Get Started
-          </button>
+          </StarBorder>
+          
           <button
             onClick={onLearnMore}
             className="btn btn-secondary btn-outline btn-lg"
