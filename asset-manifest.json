@@ -1,15 +1,15 @@
 {
   "files": {
     "main.css": "/price-calculator/static/css/main.e1ddacdd.css",
-    "main.js": "/price-calculator/static/js/main.8383fd27.js",
+    "main.js": "/price-calculator/static/js/main.3c67ec5a.js",
     "static/js/488.c4a3e2e6.chunk.js": "/price-calculator/static/js/488.c4a3e2e6.chunk.js",
     "index.html": "/price-calculator/index.html",
     "main.e1ddacdd.css.map": "/price-calculator/static/css/main.e1ddacdd.css.map",
-    "main.8383fd27.js.map": "/price-calculator/static/js/main.8383fd27.js.map",
+    "main.3c67ec5a.js.map": "/price-calculator/static/js/main.3c67ec5a.js.map",
     "488.c4a3e2e6.chunk.js.map": "/price-calculator/static/js/488.c4a3e2e6.chunk.js.map"
   },
   "entrypoints": [
     "static/css/main.e1ddacdd.css",
-    "static/js/main.8383fd27.js"
+    "static/js/main.3c67ec5a.js"
   ]
 }
