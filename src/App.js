@@ -424,6 +424,7 @@ function VoiceAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplete })
     const [transcript, setTranscript] = useState(null);
     const [error, setError] = useState('');
     const [isAnalyzing, setIsAnalyzing] = useState(false);
+    const [audioSampleRate, setAudioSampleRate] = useState(null); // Add this state
 
     const startRecording = async () => {
         try {
@@ -434,6 +435,12 @@ function VoiceAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplete })
             const stream = await navigator.mediaDevices.getUserMedia({
                 audio: { channelCount: 1, sampleRate: 48000, noiseSuppression: true, echoCancellation: true, autoGainControl: true }
             });
+
+            // Get the actual sample rate from the stream
+            const audioTrack = stream.getAudioTracks()[0];
+            const sampleRate = audioTrack.getSettings().sampleRate;
+            setAudioSampleRate(sampleRate); // Store it in state
+
             const recorder = new MediaRecorder(stream, { mimeType: mime });
             mediaRecorder.current = recorder;                 // ✅ keep a ref for stop()
 
@@ -491,7 +498,9 @@ function VoiceAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplete })
                     method: 'POST',
                     mode: 'cors',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ audioData: base64Audio }),
+                    body: JSON.stringify({ audioData: base64Audio,
+                        sampleRate: audioSampleRate
+                     }),
                 });
 
                 const result = await response.json();

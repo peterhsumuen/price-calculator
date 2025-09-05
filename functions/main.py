@@ -228,11 +228,14 @@ def analyze_voice_recording(req: https_fn.Request) -> https_fn.Response:
         _initialize_clients()
 
         data = req.get_json(silent=True) or {}
-        if "audioData" not in data:
+        if "audioData" not in data or "sampleRate" not in data:
             return https_fn.Response(
                 json.dumps({"error": "Bad Request: 'audioData' not found"}),
                 status=400, mimetype="application/json", headers=_cors_headers_for(origin)
             )
+        
+        # Get the sample rate from the request
+        sample_rate = data["sampleRate"]
 
         # Decode the data URI and capture the original mime
         audio_content, mime_type = _decode_data_uri(data["audioData"])
@@ -304,7 +307,7 @@ def analyze_voice_recording(req: https_fn.Request) -> https_fn.Response:
             # Most Opus recordings are 48kHz; if your recorder is 44100, change this.
             explicit_config = speech_v2.ExplicitDecodingConfig(
                 encoding=decoding_encoding,
-                sample_rate_hertz=48000,           # Opus typically 48000; adjust if you know yours is different
+                sample_rate_hertz=sample_rate,           # Opus typically 48000; adjust if you know yours is different
                 audio_channel_count=channel_count   # try 2 first, then 1
             )
 
@@ -315,7 +318,7 @@ def analyze_voice_recording(req: https_fn.Request) -> https_fn.Response:
             recognition_config = speech_v2.RecognitionConfig(
                 explicit_decoding_config=explicit_config,
                 language_codes=["en-US"],
-                model="latest_long",
+                model="chirp_3",
                 features=features
             )
 
