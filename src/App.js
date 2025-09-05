@@ -3,6 +3,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { initializeApp } from 'firebase/app';
 // Make sure to re-link your CSS file if the name changed.
 import './App.css';
+import WelcomePage from './WelcomePage';
+
 import {
     getAuth,
     onAuthStateChanged,
@@ -647,6 +649,7 @@ export default function App() {
     const [loading, setLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState('calculator');
     const [dataForCalculator, setDataForCalculator] = useState(null);
+    const [showWelcome, setShowWelcome] = useState(true);
     
 
     useEffect(() => {
@@ -667,6 +670,10 @@ export default function App() {
         setCurrentPage(page);
         setDataForCalculator(data);
     };
+
+    if (showWelcome) {
+      return <WelcomePage onGetStarted={() => setShowWelcome(false)} />;
+    }
 
     const renderPage = () => {
     switch (currentPage) {
