@@ -9,7 +9,7 @@ function WelcomePage({ onGetStarted, onLearnMore }) {
       {/* Orb Background */}
       <div className="absolute inset-0 z-0">
         <Orb
-          hoverIntensity={0.5}
+          hoverIntensity={0.1}
           rotateOnHover={true}
           hue={220}
           forceHoverState={false}
