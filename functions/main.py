@@ -318,7 +318,7 @@ def analyze_voice_recording(req: https_fn.Request) -> https_fn.Response:
             recognition_config = speech_v2.RecognitionConfig(
                 explicit_decoding_config=explicit_config,
                 language_codes=["en-US"],
-                model="chirp_3",
+                model="chirp_2",
                 features=features
             )
 

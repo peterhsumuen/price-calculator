@@ -427,6 +427,9 @@ function VoiceAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplete })
     const [audioSampleRate, setAudioSampleRate] = useState(null); // Add this state
 
     const startRecording = async () => {
+        setAudioChunks([]);
+        setError('');
+        
         try {
             const mime = (window.MediaRecorder?.isTypeSupported?.('audio/webm;codecs=opus'))
                 ? 'audio/webm;codecs=opus'
@@ -491,6 +494,12 @@ function VoiceAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplete })
         reader.readAsDataURL(audioBlob);
         reader.onloadend = async () => {
             const base64Audio = reader.result;
+            if (!base64Audio) {
+                setError('Failed to read the audio data. Please try recording again.');
+                setIsAnalyzing(false);
+                return;
+            }
+
             const functionUrl = 'https://analyze-voice-recording-w47bikyqya-uc.a.run.app';
             
             try {
@@ -515,7 +524,6 @@ function VoiceAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplete })
                 setError(`Analysis failed: ${err.message}`);
             } finally {
                 setIsAnalyzing(false);
-                setAudioChunks([]);
             }
         };
     };
