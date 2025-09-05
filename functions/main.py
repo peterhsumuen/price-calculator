@@ -359,11 +359,17 @@ def analyze_voice_recording(req: https_fn.Request) -> https_fn.Response:
                 "Possible causes: near-silence/very short audio, wrong sample_rate_hertz, or a codec/container mismatch."
             )
 
-        alts = file_result.transcript.results[0].alternatives
-        if not alts:
-            raise ValueError("No alternatives returned.")
+        # Loop through all results and join them to form the full transcript
+        transcript_parts = []
+        for result in file_result.transcript.results:
+            if result.alternatives:
+                transcript_parts.append(result.alternatives[0].transcript)
+        
+        transcript = "".join(transcript_parts).strip()
 
-        transcript = alts[0].transcript
+        if not transcript:
+             raise ValueError("No alternatives returned.")
+        
         print(f"[analyze_voice_recording] Transcript length: {len(transcript)}")
 
         # 3) Clean up temporary audio file
