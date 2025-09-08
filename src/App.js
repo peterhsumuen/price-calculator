@@ -470,7 +470,7 @@ function BlueprintAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplet
                     <a role="tab" className="tab" onClick={() => onPageChange('voiceAnalyzer')}>Voice Analyzer</a>
                 </div>
                 <h1 className="title">Blueprint Analyzer</h1>
-                <p>Upload a blueprint (PNG, JPG, or PDF) to automatically extract project details.</p>
+                <p>Upload a blueprint (PNG, JPG, or PDF) to automatically extract project details. The analysis time may take up to 10 minutes depended on the file size.</p>
                 <div className="form-control w-full mt-4">
                     <input type="file" onChange={handleFileChange} accept="image/png, image/jpeg, application/pdf" className="file-input file-input-bordered w-full rounded-box" />
                     <button onClick={handleAnalyze} disabled={isAnalyzing || !blueprintFile} className="btn btn-secondary btn-outline mt-4">
@@ -687,6 +687,7 @@ function VoiceAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplete })
                     <a role="tab" className="tab tab-active">Voice Analyzer</a>
                 </div>
                 <h1 className="title">Voice Recording & Analysis</h1>
+                <p className="mb-4 text-center">Record client meetings or personal notes. While recording, an icon will show if your mic level is active or too low. You can preview the audio before sending it for AI analysis.</p>
                 <div className="flex flex-col sm:flex-row gap-4 items-center">
                     <button onClick={isRecording ? stopRecording : startRecording} className={`btn ${isRecording ? 'btn-error' : 'btn-primary'} btn-outline grow`}>
                         {isRecording ? 'Stop Recording' : 'Start Recording'}
