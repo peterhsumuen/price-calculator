@@ -62,6 +62,75 @@ const PRICING_RULES = {
     'Landscape': () => 0,
 };
 
+// --- NEW COMPONENT: CollapsibleSection ---
+// A reusable component to show expandable content.
+function CollapsibleSection({ title, content }) {
+    const [isExpanded, setIsExpanded] = useState(false);
+
+    if (!content) {
+        return null;
+    }
+
+    const toggleExpansion = () => setIsExpanded(!isExpanded);
+
+    // Show a snippet if not expanded and content is long
+    const isLongContent = content.length > 200;
+    const displayContent = isExpanded ? content : (isLongContent ? `${content.substring(0, 200)}...` : content);
+
+    return (
+        <div className="py-2">
+            <h4 className="font-semibold text-lg">{title}</h4>
+            <p className="whitespace-pre-line text-base-content/80">{displayContent}</p>
+            {isLongContent && (
+                <button onClick={toggleExpansion} className="link link-primary text-sm mt-1">
+                    {isExpanded ? 'Show Less' : 'Show More'}
+                </button>
+            )}
+        </div>
+    );
+}
+
+// --- NEW COMPONENT: AnalysisResultDisplay ---
+// This component formats and displays the analysis results nicely.
+function AnalysisResultDisplay({ analysisResult }) {
+    if (!analysisResult || Object.keys(analysisResult).length === 0) {
+        return null;
+    }
+
+    // Separate Scope of Work to handle it with the collapsible component
+    const { "Scope of Work": scopeOfWork, "Remodeling place and size": remodeling, ...otherDetails } = analysisResult;
+
+    return (
+        <div className="mt-6 space-y-4">
+            <h3 className="text-xl font-bold">Analysis Results:</h3>
+            <div className="bg-base-200 p-4 rounded-box space-y-2">
+                {Object.entries(otherDetails).map(([key, value]) => (
+                    <div key={key} className="py-1">
+                        <h4 className="font-semibold text-lg">{key}</h4>
+                        <p className="text-base-content/80">{value || 'N/A'}</p>
+                    </div>
+                ))}
+
+                {/* Handle the nested remodeling object */}
+                {remodeling && typeof remodeling === 'object' && (
+                     <div className="py-2">
+                        <h4 className="font-semibold text-lg">Remodeling Place and Size</h4>
+                        <div className="pl-4">
+                            {Object.entries(remodeling).map(([key, value]) => value !== null && (
+                                <p key={key} className="text-base-content/80"><strong>{key}:</strong> {value}</p>
+                            ))}
+                        </div>
+                    </div>
+                )}
+                
+                {/* Use the collapsible section for the long scope of work */}
+                <CollapsibleSection title="Scope of Work" content={scopeOfWork} />
+            </div>
+        </div>
+    );
+}
+
+
 // Price Calculator Component
 function PriceCalculator({ user, onLogout, onPageChange, initialData }) {
     const [items, setItems] = useState([{ id: uuidv4(), type: '', sf: '' }]);
@@ -410,12 +479,13 @@ function BlueprintAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplet
                     </button>
                 </div>
                 {error && <div className="alert alert-error mt-4 rounded-box">{error}</div>}
+                
+                {/* MODIFIED: Use the new display component */}
                 {analysisResult && (
-                    <div className="mt-6">
-                        <h3 className="text-xl font-bold">Analysis Results:</h3>
-                        <pre className="bg-base-200 p-4 mt-2 rounded-box">{JSON.stringify(analysisResult, null, 2)}</pre>
+                    <>
+                        <AnalysisResultDisplay analysisResult={analysisResult} />
                         <button onClick={handleUseInCalculator} className="btn btn-primary btn-outline mt-4">Use in Calculator</button>
-                    </div>
+                    </>
                 )}
             </div>
         </div>
@@ -433,13 +503,11 @@ function VoiceAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplete })
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [audioSampleRate, setAudioSampleRate] = useState(null);
 
-    // --- New additions for real-time analysis ---
-    const [micStatus, setMicStatus] = useState('idle'); // 'idle', 'listening', 'low'
+    const [micStatus, setMicStatus] = useState('idle');
     const [audioPreviewUrl, setAudioPreviewUrl] = useState(null);
     const audioContextRef = useRef(null);
     const analyserRef = useRef(null);
     const animationFrameRef = useRef(null);
-    // --- End of new additions ---
 
     const resetState = () => {
         setAudioChunks([]);
@@ -455,11 +523,9 @@ function VoiceAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplete })
         const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
         analyserRef.current.getByteFrequencyData(dataArray);
         
-        // Simple average of the frequency data to get a volume level
         const average = dataArray.reduce((acc, val) => acc + val, 0) / dataArray.length;
         
-        // Update mic status based on a simple threshold
-        if (average > 5) { // Threshold for detecting sound. Adjust as needed.
+        if (average > 5) {
             setMicStatus('listening');
         } else {
             setMicStatus('low');
@@ -485,14 +551,12 @@ function VoiceAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplete })
                 audio: { channelCount: 1, sampleRate: 48000, noiseSuppression: true, echoCancellation: true, autoGainControl: true }
             });
 
-            // --- Setup for real-time analysis ---
             audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
             const source = audioContextRef.current.createMediaStreamSource(stream);
             analyserRef.current = audioContextRef.current.createAnalyser();
             analyserRef.current.fftSize = 256;
             analyserRef.current.smoothingTimeConstant = 0.6;
             source.connect(analyserRef.current);
-            // --- End of setup ---
             
             const audioTrack = stream.getAudioTracks()[0];
             const sampleRate = audioTrack.getSettings().sampleRate;
@@ -508,13 +572,13 @@ function VoiceAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplete })
             recorder.onstop = () => {
                 const blob = new Blob(chunks, { type: mime });
                 setAudioChunks([blob]);
-                setAudioPreviewUrl(URL.createObjectURL(blob)); // Create a URL for preview
+                setAudioPreviewUrl(URL.createObjectURL(blob));
             };
 
             recorder.start();
             setIsRecording(true);
             setMicStatus('listening');
-            animationFrameRef.current = requestAnimationFrame(drawMicVisualizer); // Start the visualizer loop
+            animationFrameRef.current = requestAnimationFrame(drawMicVisualizer);
 
         } catch (err) {
             setError('Could not start recording. Please ensure you have given microphone permissions.');
@@ -523,7 +587,6 @@ function VoiceAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplete })
 
     const stopRecording = () => new Promise((resolve) => {
         try {
-            // --- Cleanup for real-time analysis ---
             if (animationFrameRef.current) {
                 cancelAnimationFrame(animationFrameRef.current);
             }
@@ -532,7 +595,6 @@ function VoiceAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplete })
                 audioContextRef.current = null;
             }
             setMicStatus('idle');
-            // --- End of cleanup ---
 
             if (mediaRecorder.current && mediaRecorder.current.state !== 'inactive') {
                 const orig = mediaRecorder.current.onstop;
@@ -625,8 +687,6 @@ function VoiceAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplete })
                     <a role="tab" className="tab tab-active">Voice Analyzer</a>
                 </div>
                 <h1 className="title">Voice Recording & Analysis</h1>
-
-                {/* --- New Mic Status and Controls --- */}
                 <div className="flex flex-col sm:flex-row gap-4 items-center">
                     <button onClick={isRecording ? stopRecording : startRecording} className={`btn ${isRecording ? 'btn-error' : 'btn-primary'} btn-outline grow`}>
                         {isRecording ? 'Stop Recording' : 'Start Recording'}
@@ -651,15 +711,23 @@ function VoiceAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplete })
                         <button onClick={resetState} className="btn btn-ghost btn-sm">Discard and record again</button>
                     </div>
                 )}
-                {/* --- End of New UI --- */}
 
                 {error && <div className="alert alert-error mt-4 rounded-box">{error}</div>}
-                {transcript && <div className="mt-6"><h3>Transcript:</h3><p className="bg-base-200 p-2 rounded-box">{transcript}</p></div>}
-                {analysisResult && <div className="mt-4"><h3>Analysis Results:</h3><pre className="bg-base-200 p-2 rounded-box">{JSON.stringify(analysisResult, null, 2)}</pre></div>}
+                
+                {/* MODIFIED: Use the new display component */}
+                {transcript && (
+                     <div className="mt-6">
+                        <CollapsibleSection title="Transcript" content={transcript} />
+                    </div>
+                )}
+                
                 {analysisResult && (
-                    <button onClick={handleUseInCalculator} className="btn btn-primary btn-outline mt-4">
-                        Use in Calculator
-                    </button>
+                    <>
+                        <AnalysisResultDisplay analysisResult={analysisResult} />
+                        <button onClick={handleUseInCalculator} className="btn btn-primary btn-outline mt-4">
+                            Use in Calculator
+                        </button>
+                    </>
                 )}
             </div>
         </div>
@@ -751,7 +819,6 @@ export default function App() {
         setDataForCalculator(data);
     };
 
-    // Render based on the new appState
     if (appState === 'welcome') {
       return <WelcomePage 
                 onGetStarted={() => setAppState('app')} 
@@ -765,14 +832,10 @@ export default function App() {
 
     const renderPage = () => {
     switch (currentPage) {
-        // REMOVED scopeOfWork={scopeOfWork} from PriceCalculator
         case 'calculator': return <PriceCalculator user={user} onLogout={handleLogout} onPageChange={handlePageChange} initialData={dataForCalculator} />;
         case 'records': return <RecordsPage user={user} onLogout={handleLogout} onPageChange={handlePageChange} />;
-        // REMOVED onAnalysisComplete={setScopeOfWork} from BlueprintAnalyzerPage
         case 'analyzer': return <BlueprintAnalyzerPage user={user} onLogout={handleLogout} onPageChange={handlePageChange} />;
-        // REMOVED onAnalysisComplete={setScopeOfWork} from VoiceAnalyzerPage
         case 'voiceAnalyzer': return <VoiceAnalyzerPage user={user} onLogout={handleLogout} onPageChange={handlePageChange} />;
-        // REMOVED scopeOfWork={scopeOfWork} from the default case
         default: return <PriceCalculator user={user} onLogout={handleLogout} onPageChange={handlePageChange} initialData={dataForCalculator} />;
     }
 };
@@ -783,4 +846,3 @@ export default function App() {
         </>
     );
 }
-
