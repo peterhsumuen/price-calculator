@@ -2,10 +2,10 @@ import React from 'react';
 import Orb from './Orb';
 import ShinyText from './ShinyText';
 import GradientText from './GradientText';
-import StarBorder from './StarBorder'; // Import the new component
+import StarBorder from './StarBorder';
 import './App.css'; 
 
-function WelcomePage({ onGetStarted, onLearnMore }) {
+function WelcomePage({ onGetStarted, onLearnMore }) { // Add onLearnMore here
   return (
     <div className="relative w-screen h-screen flex flex-col items-center justify-center text-white overflow-hidden">
       {/* Orb Background */}
@@ -23,7 +23,7 @@ function WelcomePage({ onGetStarted, onLearnMore }) {
         <h1 className="text-5xl md:text-7xl font-bold mb-4">
           <ShinyText text="AuraBid" speed={4} />
         </h1>
-        
+
         <div className="text-lg md:text-xl mb-8 max-w-2xl">
           <GradientText showBorder={true}>
             <span className="inline-block p-4">
@@ -43,9 +43,9 @@ function WelcomePage({ onGetStarted, onLearnMore }) {
           >
             Get Started
           </StarBorder>
-          
+
           <button
-            onClick={onLearnMore}
+            onClick={onLearnMore} // Use the new prop here
             className="btn btn-secondary btn-outline btn-lg"
           >
             Learn More

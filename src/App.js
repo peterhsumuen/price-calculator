@@ -4,6 +4,7 @@ import { initializeApp } from 'firebase/app';
 // Make sure to re-link your CSS file if the name changed.
 import './App.css';
 import WelcomePage from './WelcomePage';
+import LearnMorePage from './LearnMorePage';
 
 import {
     getAuth,
@@ -649,7 +650,7 @@ export default function App() {
     const [loading, setLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState('calculator');
     const [dataForCalculator, setDataForCalculator] = useState(null);
-    const [showWelcome, setShowWelcome] = useState(true);
+    const [appState, setAppState] = useState('welcome');
     
 
     useEffect(() => {
@@ -671,8 +672,16 @@ export default function App() {
         setDataForCalculator(data);
     };
 
-    if (showWelcome) {
-      return <WelcomePage onGetStarted={() => setShowWelcome(false)} />;
+    // Render based on the new appState
+    if (appState === 'welcome') {
+      return <WelcomePage 
+                onGetStarted={() => setAppState('app')} 
+                onLearnMore={() => setAppState('learnMore')} 
+             />;
+    }
+
+    if (appState === 'learnMore') {
+      return <LearnMorePage onBack={() => setAppState('welcome')} />;
     }
 
     const renderPage = () => {
