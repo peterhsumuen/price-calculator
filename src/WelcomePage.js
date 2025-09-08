@@ -45,7 +45,7 @@ function WelcomePage({ onGetStarted, onLearnMore }) { // Add onLearnMore here
           </StarBorder>
 
           <button
-            onClick={onLearnMore} // Use the new prop here
+            onClick={onLearnMore} 
             className="btn btn-secondary btn-outline btn-lg"
           >
             Learn More
