@@ -105,7 +105,7 @@ def _decode_data_uri(data_uri):
 
 # --- Cloud Functions ---
 
-@https_fn.on_request(memory=4096)
+@https_fn.on_request(memory=4096, timeout_sec=540)
 def analyze_blueprint(req: https_fn.Request) -> https_fn.Response:
     origin = req.headers.get("Origin")
 
