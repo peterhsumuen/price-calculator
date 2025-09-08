@@ -118,7 +118,6 @@ def analyze_blueprint(req: https_fn.Request) -> https_fn.Response:
     try:
         _initialize_clients()  # Ensure clients are ready
 
-        # CORRECT: Moved prompt definition to the top so it exists before being used.
         prompt = """
         Your primary goal is to analyze all provided blueprint pages to generate a clear "Scope of Work". After that, fill in any other details you can find. Your task is to extract all information and format it into a precise JSON structure.
 
@@ -378,7 +377,7 @@ def analyze_voice_recording(req: https_fn.Request) -> https_fn.Response:
         except Exception as _:
             pass
 
-        # --- Gemini analysis prompt (same as yours) ---
+        # --- Gemini analysis prompt ---
         prompt = f"""
         Analyze the following transcribed text from a client meeting. Your task is to first extract key project details into a JSON format. 
 

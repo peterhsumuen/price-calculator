@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { initializeApp } from 'firebase/app';
-// Make sure to re-link your CSS file if the name changed.
 import './App.css';
 import WelcomePage from './WelcomePage';
 import LearnMorePage from './LearnMorePage';
@@ -62,7 +61,6 @@ const PRICING_RULES = {
     'Landscape': () => 0,
 };
 
-// --- NEW COMPONENT: CollapsibleSection ---
 // A reusable component to show expandable content.
 function CollapsibleSection({ title, content }) {
     const [isExpanded, setIsExpanded] = useState(false);
@@ -90,7 +88,6 @@ function CollapsibleSection({ title, content }) {
     );
 }
 
-// --- NEW COMPONENT: AnalysisResultDisplay ---
 // This component formats and displays the analysis results nicely.
 function AnalysisResultDisplay({ analysisResult }) {
     if (!analysisResult || Object.keys(analysisResult).length === 0) {
