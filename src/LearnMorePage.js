@@ -1,11 +1,12 @@
 import React from 'react';
 import SpotlightCard from './SpotlightCard';
+import DecryptedText from './DecryptedText'; 
 
 function LearnMorePage({ onBack }) {
   return (
     <div className="min-h-screen bg-[#111827] flex flex-col items-center justify-center p-8 text-white">
       <h1 className="text-5xl md:text-6xl font-bold mb-12 text-center">
-        Key Features
+        <DecryptedText text="Key Features" animateOn="view" sequential speed={50} />
       </h1>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl w-full">
@@ -19,7 +20,12 @@ function LearnMorePage({ onBack }) {
             </div>
             <h2 className="text-2xl font-bold mb-2">Price Calculator</h2>
             <p className="text-gray-300">
-              Dynamically estimate project costs with customizable line items. Input square footage for various job types like "Full Gut" or "Kitchen Remodel" to get instant, accurate pricing.
+              <DecryptedText 
+                text={`Dynamically estimate project costs with customizable line items. Input square footage for various job types like "Full Gut" or "Kitchen Remodel" to get instant, accurate pricing.`} 
+                animateOn="view" 
+                sequential 
+                speed={15} 
+              />
             </p>
           </div>
         </SpotlightCard>
@@ -34,7 +40,12 @@ function LearnMorePage({ onBack }) {
             </div>
             <h2 className="text-2xl font-bold mb-2">Blueprint Analyzer</h2>
             <p className="text-gray-300">
-              Upload blueprint files (PNG, JPG, or PDF) and let our AI extract key details like project name, address, and area sizes to auto-fill the calculator.
+              <DecryptedText 
+                text={`Upload blueprint files (PNG, JPG, or PDF) and let our AI extract key details like project name, address, and area sizes to auto-fill the calculator.`}
+                animateOn="view" 
+                sequential 
+                speed={25} 
+              />
             </p>
           </div>
         </SpotlightCard>
@@ -49,7 +60,12 @@ function LearnMorePage({ onBack }) {
             </div>
             <h2 className="text-2xl font-bold mb-2">Voice Analyzer</h2>
             <p className="text-gray-300">
-              Record your voice directly in the app. Our AI will transcribe and analyze the audio to populate project details in the price calculator, streamlining your workflow.
+              <DecryptedText 
+                text={`Record your voice directly in the app. Our AI will transcribe and analyze the audio to populate project details in the price calculator, streamlining your workflow.`}
+                animateOn="view" 
+                sequential 
+                speed={25} 
+              />
             </p>
           </div>
         </SpotlightCard>
