@@ -128,9 +128,6 @@ def analyze_blueprint(req: https_fn.Request) -> https_fn.Response:
             * `Project Description`: **Summary of the blueprint in a big scope like bathroom remodeling, kitchen remodeling...**
             * `Project Address`: **Find the physical address of the job site. Look for labels like "PROJECT ADDRESS", "SITE ADDRESS", or "JOBSITE LOCATION".**
             * `Client Name`: **Find the name of the property owner or client. Look for labels like "OWNER", "CLIENT", "APPLICANT", or "PREPARED FOR".**
-            * `Zone District`: **Find the zoning code for the property. Look for labels like "ZONE DISTRICT", "ZONING", or "PARCEL ZONING".**
-            * `Type of Construction`: **Find the construction classification. Look for labels like "TYPE OF CONSTRUCTION" or "CONSTRUCTION TYPE".**
-            * `Occupancy Group`: **Find the occupancy classification code. Look for labels like "OCCUPANCY GROUP", "OCCUPANCY", or "GROUP".**
             * `Scope of Work`: **Act as a project manager writing a formal Scope of Work for a homeowner. Using all provided blueprint pages, create a thorough, step-by-step detail description of the entire project. Structure the output by area or room. For each location, use clear headings (e.g., Kitchen Remodel, Second Floor Addition, Exterior Work) and detail the following in plain language:
                 - Demolition: Clearly state what existing structures will be removed.
                 - Construction & Framing: Describe all new construction.
@@ -148,7 +145,10 @@ def analyze_blueprint(req: https_fn.Request) -> https_fn.Response:
             - `Garage`: Find the area labeled "GARAGE" and use its size.
             - `Bedroom`: Find any area labeled "BEDROOM" and use its size. 
             - `Landscape`: Look for landscaping plans.
-            - If there are multiple rooms of the same type, add their sizes together.
+            ** If there are multiple rooms of the same type, add their sizes together. **
+            - `Zone District`: **Find the zoning code for the property. Look for labels like "ZONE DISTRICT", "ZONING", or "PARCEL ZONING".**
+            - `Type of Construction`: **Find the construction classification. Look for labels like "TYPE OF CONSTRUCTION" or "CONSTRUCTION TYPE".**
+            - `Occupancy Group`: **Find the occupancy classification code. Look for labels like "OCCUPANCY GROUP", "OCCUPANCY", or "GROUP".**
 
         Your final output must be ONLY a single, valid JSON object. Do not add any other text or explanations.
 
@@ -379,9 +379,10 @@ def analyze_voice_recording(req: https_fn.Request) -> https_fn.Response:
 
         # --- Gemini analysis prompt ---
         prompt = f"""
-        Analyze the following transcribed text from a client meeting. Your task is to first extract key project details into a JSON format. 
+        Analyze the following transcribed text from a client meeting. Your task is to: 
+        1. extract key project details into a JSON format. 
 
-        Your primary goal is to analyze all provided transcribed text to generate a clear "Scope of Work". After that, fill in any other details you can find. Your task is to extract all information and format it into a precise JSON structure.
+        2. analyze all provided transcribed text to generate a clear "Scope of Work". After that, fill in any other details you can find.
 
         Follow these instructions carefully for each key:
 
@@ -390,9 +391,6 @@ def analyze_voice_recording(req: https_fn.Request) -> https_fn.Response:
             * `Project Description`: **Summary of the blueprint in a big scope like bathroom remodeling, kitchen remodeling...**
             * `Project Address`: **Find the physical address of the job site. Look for labels like "PROJECT ADDRESS", "SITE ADDRESS", or "JOBSITE LOCATION".**
             * `Client Name`: **Find the name of the property owner or client. Look for labels like "OWNER", "CLIENT", "APPLICANT", or "PREPARED FOR".**
-            * `Zone District`: **Find the zoning code for the property. Look for labels like "ZONE DISTRICT", "ZONING", or "PARCEL ZONING".**
-            * `Type of Construction`: **Find the construction classification. Look for labels like "TYPE OF CONSTRUCTION" or "CONSTRUCTION TYPE".**
-            * `Occupancy Group`: **Find the occupancy classification code. Look for labels like "OCCUPANCY GROUP", "OCCUPANCY", or "GROUP".**
             * `Scope of Work`: **Act as a project manager writing a formal Scope of Work for a homeowner. Using all provided transcribed text, create a thorough, step-by-step detail description of the entire project. Structure the output by area or room. For each location, use clear headings (e.g., Kitchen Remodel, Second Floor Addition, Exterior Work) and detail the following in plain language:
                 - Demolition: Clearly state what existing structures will be removed.
                 - Construction & Framing: Describe all new construction.
@@ -410,7 +408,10 @@ def analyze_voice_recording(req: https_fn.Request) -> https_fn.Response:
             - `Garage`: Find the area labeled "GARAGE" and use its size.
             - `Bedroom`: Find any area labeled "BEDROOM" and use its size. 
             - `Landscape`: Look for landscaping plans.
-            - If there are multiple rooms of the same type, add their sizes together.
+            ** If there are multiple rooms of the same type, add their sizes together. **
+            - `Zone District`: **Find the zoning code for the property. Look for labels like "ZONE DISTRICT", "ZONING", or "PARCEL ZONING".**
+            - `Type of Construction`: **Find the construction classification. Look for labels like "TYPE OF CONSTRUCTION" or "CONSTRUCTION TYPE".**
+            - `Occupancy Group`: **Find the occupancy classification code. Look for labels like "OCCUPANCY GROUP", "OCCUPANCY", or "GROUP".**
 
         Your final output must be ONLY a single, valid JSON object. Do not add any other text or explanations.
 
