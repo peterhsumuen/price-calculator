@@ -246,11 +246,11 @@ function PriceCalculator({ user, onLogout, onPageChange, initialData }) {
             <div className="card w-full max-w-4xl bg-base-100 shadow-xl p-8 rounded-box">
                 <header className="header"><span className="font-bold">Welcome, {user.email}!</span><button onClick={onLogout} className="btn btn-ghost btn-sm">Logout</button></header>
                 <div role="tablist" className="tabs tabs-boxed mb-8">
-                    <a role="tab" className="tab tab-active">Calculator</a>
                     <a role="tab" className="tab" onClick={() => onPageChange('records')}>Records</a>
+                    <a role="tab" className="tab tab-active">Calculator</a>
                     <a role="tab" className="tab" onClick={() => onPageChange('analyzer')}>Blueprint Analyzer</a>
                     <a role="tab" className="tab" onClick={() => onPageChange('voiceAnalyzer')}>Voice Analyzer</a>
-                </div>
+                    </div>
 
                 <h1 className="title">{editingProjectId ? 'Modify Project' : 'Pricing Calculator'}</h1>
                 <div className="project-details">
@@ -348,11 +348,11 @@ function RecordsPage({ user, onLogout, onPageChange }) {
                     <button onClick={onLogout} className="btn btn-ghost btn-sm">Logout</button>
                 </header>
                 <div role="tablist" className="tabs tabs-boxed mb-8">
-                    <a role="tab" className="tab" onClick={() => onPageChange('calculator')}>Calculator</a>
                     <a role="tab" className="tab tab-active">Records</a>
+                    <a role="tab" className="tab" onClick={() => onPageChange('calculator')}>Calculator</a>
                     <a role="tab" className="tab" onClick={() => onPageChange('analyzer')}>Blueprint Analyzer</a>
                     <a role="tab" className="tab" onClick={() => onPageChange('voiceAnalyzer')}>Voice Analyzer</a>
-                </div>
+                    </div>
                 <h1 className="title">Project Records</h1>
                 <div className="overflow-x-auto">
                     <table className="table w-full">
@@ -461,11 +461,11 @@ function BlueprintAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplet
                     <button onClick={onLogout} className="btn btn-ghost btn-sm">Logout</button>
                 </header>
                 <div role="tablist" className="tabs tabs-boxed mb-8">
-                    <a role="tab" className="tab" onClick={() => onPageChange('calculator')}>Calculator</a>
                     <a role="tab" className="tab" onClick={() => onPageChange('records')}>Records</a>
+                    <a role="tab" className="tab" onClick={() => onPageChange('calculator')}>Calculator</a>
                     <a role="tab" className="tab tab-active">Blueprint Analyzer</a>
                     <a role="tab" className="tab" onClick={() => onPageChange('voiceAnalyzer')}>Voice Analyzer</a>
-                </div>
+                    </div>
                 <h1 className="title">Blueprint Analyzer</h1>
                 <p>Upload a blueprint (PNG, JPG, or PDF) to automatically extract project details. The analysis time may take up to 10 minutes depended on the file size.</p>
                 <div className="form-control w-full mt-4">
@@ -678,11 +678,11 @@ function VoiceAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplete })
                     <button onClick={onLogout} className="btn btn-ghost btn-sm">Logout</button>
                 </header>
                 <div role="tablist" className="tabs tabs-boxed mb-8">
-                    <a role="tab" className="tab" onClick={() => onPageChange('calculator')}>Calculator</a>
                     <a role="tab" className="tab" onClick={() => onPageChange('records')}>Records</a>
+                    <a role="tab" className="tab" onClick={() => onPageChange('calculator')}>Calculator</a>
                     <a role="tab" className="tab" onClick={() => onPageChange('analyzer')}>Blueprint Analyzer</a>
                     <a role="tab" className="tab tab-active">Voice Analyzer</a>
-                </div>
+                    </div>
                 <h1 className="title">Voice Recording & Analysis</h1>
                 <p className="mb-4 text-center">Record client meetings or personal notes. While recording, an icon will show if your mic level is active or too low. You can preview the audio before sending it for AI analysis.</p>
                 <div className="flex flex-col sm:flex-row gap-4 items-center">
