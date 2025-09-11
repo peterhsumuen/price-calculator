@@ -213,7 +213,7 @@ def analyze_blueprint(req: https_fn.Request) -> https_fn.Response:
         return https_fn.Response(json.dumps({"error": str(e)}), status=500, mimetype="application/json", headers=_cors_headers_for(origin))
 
 
-@https_fn.on_request(memory=4096, timeout_sec=540)
+@https_fn.on_request(memory=8192, timeout_sec=1800)
 def analyze_voice_recording(req: https_fn.Request) -> https_fn.Response:
     origin = req.headers.get("Origin")
 
