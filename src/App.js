@@ -4,6 +4,7 @@ import { initializeApp } from 'firebase/app';
 import './App.css';
 import WelcomePage from './WelcomePage';
 import LearnMorePage from './LearnMorePage';
+import FormattedScopeOfWork from './FormattedScopeOfWork';
 
 import {
     getAuth,
@@ -347,12 +348,12 @@ function RecordsPage({ user, onLogout, onPageChange }) {
                     <span className="font-bold">Welcome, {user.email}!</span>
                     <button onClick={onLogout} className="btn btn-ghost btn-sm">Logout</button>
                 </header>
-                <div role="tablist" className="tabs tabs-boxed mb-8">
+                 <div role="tablist" className="tabs tabs-boxed mb-8">
                     <a role="tab" className="tab tab-active">Records</a>
                     <a role="tab" className="tab" onClick={() => onPageChange('calculator')}>Calculator</a>
                     <a role="tab" className="tab" onClick={() => onPageChange('analyzer')}>Blueprint Analyzer</a>
                     <a role="tab" className="tab" onClick={() => onPageChange('voiceAnalyzer')}>Voice Analyzer</a>
-                    </div>
+                </div>
                 <h1 className="title">Project Records</h1>
                 <div className="overflow-x-auto">
                     <table className="table w-full">
@@ -381,7 +382,15 @@ function RecordsPage({ user, onLogout, onPageChange }) {
                                                 {project.blueprintUrl && (<div><strong>Blueprint:</strong> <a href={project.blueprintUrl} target="_blank" rel="noopener noreferrer" className="link link-primary">View Blueprint</a></div>)}
                                                 {project.userName && (<div><strong>User Created:</strong> {project.userName}</div>)}
                                                 {project.modifiedBy && (<div><strong>Last Modified By:</strong> {project.modifiedBy}</div>)}
-                                                {project.scopeOfWork && (<div><strong>Scope of Work:</strong> <div className="whitespace-pre-line">{project.scopeOfWork}</div></div>)}
+                                                
+                                                {/* 2. Use the new component inside the collapsible one */}
+                                                {project.scopeOfWork && (
+                                                    <CollapsibleSection 
+                                                        title="Scope of Work" 
+                                                        content={<FormattedScopeOfWork content={project.scopeOfWork} />} 
+                                                    />
+                                                )}
+
                                                 <div className="font-bold mt-2">Items:</div>
                                                 <ul>
                                                     {(project.items || []).map((item, index) => (<li key={index}>{item.type}: {item.sf} sq ft</li>))}
