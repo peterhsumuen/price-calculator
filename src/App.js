@@ -63,23 +63,29 @@ const PRICING_RULES = {
 };
 
 // A reusable component to show expandable content.
-function CollapsibleSection({ title, content }) {
+function CollapsibleSection({ title, children, rawText }) {
     const [isExpanded, setIsExpanded] = useState(false);
 
-    if (!content) {
+    if (!rawText) {
         return null;
     }
 
     const toggleExpansion = () => setIsExpanded(!isExpanded);
 
-    // Show a snippet if not expanded and content is long
-    const isLongContent = content.length > 200;
-    const displayContent = isExpanded ? content : (isLongContent ? `${content.substring(0, 200)}...` : content);
+    // The length check should be on the raw string
+    const isLongContent = rawText.length > 200;
 
     return (
         <div className="py-2">
             <h4 className="font-semibold text-lg">{title}</h4>
-            <p className="whitespace-pre-line text-base-content/80">{displayContent}</p>
+            <div className="text-base-content/80">
+                {isExpanded || !isLongContent ? (
+                    children // Show the full, formatted children
+                ) : (
+                    // Show a simple text snippet for the collapsed view
+                    <p className="whitespace-pre-line">{`${rawText.substring(0, 200)}...`}</p>
+                )}
+            </div>
             {isLongContent && (
                 <button onClick={toggleExpansion} className="link link-primary text-sm mt-1">
                     {isExpanded ? 'Show Less' : 'Show More'}
@@ -122,7 +128,9 @@ function AnalysisResultDisplay({ analysisResult }) {
                 )}
                 
                 {/* Use the collapsible section for the long scope of work */}
-                <CollapsibleSection title="Scope of Work" content={scopeOfWork} />
+                <CollapsibleSection title="Scope of Work" rawText={scopeOfWork}>
+                    <p className="whitespace-pre-line text-base-content/80">{scopeOfWork}</p>
+                </CollapsibleSection>
             </div>
         </div>
     );
@@ -383,12 +391,13 @@ function RecordsPage({ user, onLogout, onPageChange }) {
                                                 {project.userName && (<div><strong>User Created:</strong> {project.userName}</div>)}
                                                 {project.modifiedBy && (<div><strong>Last Modified By:</strong> {project.modifiedBy}</div>)}
                                                 
-                                                {/* 2. Use the new component inside the collapsible one */}
                                                 {project.scopeOfWork && (
                                                     <CollapsibleSection 
                                                         title="Scope of Work" 
-                                                        content={<FormattedScopeOfWork content={project.scopeOfWork} />} 
-                                                    />
+                                                        rawText={project.scopeOfWork} 
+                                                    >
+                                                        <FormattedScopeOfWork content={project.scopeOfWork} />
+                                                    </CollapsibleSection>
                                                 )}
 
                                                 <div className="font-bold mt-2">Items:</div>
@@ -411,6 +420,7 @@ function RecordsPage({ user, onLogout, onPageChange }) {
         </div>
     );
 }
+
 
 
 // Blueprint Analyzer Page Component
@@ -724,7 +734,9 @@ function VoiceAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplete })
                 {/* MODIFIED: Use the new display component */}
                 {transcript && (
                      <div className="mt-6">
-                        <CollapsibleSection title="Transcript" content={transcript} />
+                        <CollapsibleSection title="Transcript" rawText={transcript}>
+                           <p className="whitespace-pre-line text-base-content/80">{transcript}</p>
+                        </CollapsibleSection>
                     </div>
                 )}
                 
