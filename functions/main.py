@@ -129,10 +129,37 @@ def analyze_blueprint(req: https_fn.Request) -> https_fn.Response:
             * `Project Address`: **Find the physical address of the job site. Look for labels like "PROJECT ADDRESS", "SITE ADDRESS", or "JOBSITE LOCATION".**
             * `Client Name`: **Find the name of the property owner or client. Look for labels like "OWNER", "CLIENT", "APPLICANT", or "PREPARED FOR".**
             * `Scope of Work`: **Act as a project manager writing a formal Scope of Work for a homeowner. Using all provided blueprint pages, create a thorough, step-by-step detail description of the entire project. Structure the output by area or room. For each location, use clear headings (e.g., Kitchen Remodel, Second Floor Addition, Exterior Work) and detail the following in plain language:
-                - Demolition: Clearly state what existing structures will be removed.
-                - Construction & Framing: Describe all new construction.
-                - Mechanical, Electrical & Plumbing (MEP): Detail any new installations or relocations shown on the plans.
-                - Finishes & Fixtures: List all new finishes and permanent fixtures.
+                1. Pre-Construction & Project Management
+                    - Permitting & Inspections: Detail the plan to pull all necessary city permits and coordinate all required city inspections.
+                    - Site Logistics: Describe on-site management services and the setup of temporary facilities like fencing or porta potties.
+                2. Demolition & Site Preparation
+                    - Clearly state what existing structures, finishes, and systems will be removed from the interior and exterior (e.g., walls, roofing, stucco, flooring, cabinets, old plumbing/electrical).
+                    - Mention the plan for hauling and disposal of all construction debris.
+                3. Foundation & Structural Framing
+                    - Foundation: Describe all foundation work for the new addition, including excavation, rebar installation, concrete pouring for footings and pads, and any required underpinning.
+                    - Construction & Framing: Detail all new construction, including framing for the addition, tying in the new roofline, framing new walls, floors, ceilings, and any specialty items like shower niches, curbs, or raised ceilings.
+                4. Exterior Work & Finishes
+                    - Roofing: Describe the full scope of roofing work, including installation of new plywood decking, waterproofing paper, shingles, flashing, and new gutters/downspouts. Include skylight installation if applicable.
+                    - Stucco, Siding, & Veneer: Detail the application of new exterior finishes like the multi-coat stucco process, wood siding, or stone veneer.
+                    - Windows & Exterior Doors: Specify the installation of new windows and exterior doors.
+                    - Exterior Painting: List the painting scope, including primer and finish coats for trim, eaves, and exterior walls.
+                5. Major Systems & Insulation
+                    - Plumbing (P): Detail the installation of new systems, including rough plumbing with new copper lines, sewer connections, gas lines, a new tankless water heater, and the installation of all finished fixtures.
+                    - Electrical (E): Describe the scope, such as a full home rewire, main panel upgrade, installation of sub-panels, specified number of recessed lights, new outlets, switches, and finished fixtures.
+                    - Mechanical / HVAC (M): Detail the installation of new heating and cooling systems, including the furnace/heat pump, condenser, all new ductwork, and vents.
+                    - Insulation: Specify the installation of new insulation in exterior walls, ceilings, and crawlspaces, referencing R-values if possible.
+                6. Interior Finishes (Organized by Room/Area)
+                    - For each location (e.g., Kitchen, Master Bathroom, Laundry Room), detail the following:
+                        - Drywall: Describe the installation and finish (e.g., Level 5 smooth, texture to match existing)
+                        - Painting: Detail the application of primer and two coats of paint to walls, ceilings, and all trim (doors, casing, baseboards).
+                        - Flooring & Baseboards: Specify the type of flooring to be installed (e.g., engineered hardwood, tile, carpet) and the installation of new baseboards.
+                        - Cabinetry & Countertops: Describe the installation of new cabinets and the fabrication/installation of new countertops.
+                        - Tile Work: Detail all tile installation for floors, shower walls, shower pans, and kitchen backsplashes.
+                        - Doors & Hardware: Mention the installation of new interior doors, casing, and all associated hardware.
+                7. Final Touches & Project Completion
+                    - Appliance & Accessory Installation: List the installation of all new appliances (kitchen, laundry) and bathroom accessories.
+                    - Final Cleanup: Reiterate that the project concludes with a final cleanup of the entire job site.
+                
                 - Ensure the final text is a comprehensive narrative that walks the homeowner through the entire construction journey from start to finish.**
                 
         2.  **Nested "Remodeling place and size" Object:**
@@ -391,11 +418,38 @@ def analyze_voice_recording(req: https_fn.Request) -> https_fn.Response:
             * `Project Description`: **Summary of the blueprint in a big scope like bathroom remodeling, kitchen remodeling...**
             * `Project Address`: **Find the physical address of the job site. Look for labels like "PROJECT ADDRESS", "SITE ADDRESS", or "JOBSITE LOCATION".**
             * `Client Name`: **Find the name of the property owner or client. Look for labels like "OWNER", "CLIENT", "APPLICANT", or "PREPARED FOR".**
-            * `Scope of Work`: **Act as a project manager writing a formal Scope of Work for a homeowner. Using all provided transcribed text, create a thorough, step-by-step detail description of the entire project. Structure the output by area or room. For each location, use clear headings (e.g., Kitchen Remodel, Second Floor Addition, Exterior Work) and detail the following in plain language:
-                - Demolition: Clearly state what existing structures will be removed.
-                - Construction & Framing: Describe all new construction.
-                - Mechanical, Electrical & Plumbing (MEP): Detail any new installations or relocations shown on the plans.
-                - Finishes & Fixtures: List all new finishes and permanent fixtures.
+            * `Scope of Work`: **Act as a project manager writing a formal Scope of Work for a homeowner. Using all provided blueprint pages, create a thorough, step-by-step detail description of the entire project. Structure the output by area or room. For each location, use clear headings (e.g., Kitchen Remodel, Second Floor Addition, Exterior Work) and detail the following in plain language:
+                1. Pre-Construction & Project Management
+                    - Permitting & Inspections: Detail the plan to pull all necessary city permits and coordinate all required city inspections.
+                    - Site Logistics: Describe on-site management services and the setup of temporary facilities like fencing or porta potties.
+                2. Demolition & Site Preparation
+                    - Clearly state what existing structures, finishes, and systems will be removed from the interior and exterior (e.g., walls, roofing, stucco, flooring, cabinets, old plumbing/electrical).
+                    - Mention the plan for hauling and disposal of all construction debris.
+                3. Foundation & Structural Framing
+                    - Foundation: Describe all foundation work for the new addition, including excavation, rebar installation, concrete pouring for footings and pads, and any required underpinning.
+                    - Construction & Framing: Detail all new construction, including framing for the addition, tying in the new roofline, framing new walls, floors, ceilings, and any specialty items like shower niches, curbs, or raised ceilings.
+                4. Exterior Work & Finishes
+                    - Roofing: Describe the full scope of roofing work, including installation of new plywood decking, waterproofing paper, shingles, flashing, and new gutters/downspouts. Include skylight installation if applicable.
+                    - Stucco, Siding, & Veneer: Detail the application of new exterior finishes like the multi-coat stucco process, wood siding, or stone veneer.
+                    - Windows & Exterior Doors: Specify the installation of new windows and exterior doors.
+                    - Exterior Painting: List the painting scope, including primer and finish coats for trim, eaves, and exterior walls.
+                5. Major Systems & Insulation
+                    - Plumbing (P): Detail the installation of new systems, including rough plumbing with new copper lines, sewer connections, gas lines, a new tankless water heater, and the installation of all finished fixtures.
+                    - Electrical (E): Describe the scope, such as a full home rewire, main panel upgrade, installation of sub-panels, specified number of recessed lights, new outlets, switches, and finished fixtures.
+                    - Mechanical / HVAC (M): Detail the installation of new heating and cooling systems, including the furnace/heat pump, condenser, all new ductwork, and vents.
+                    - Insulation: Specify the installation of new insulation in exterior walls, ceilings, and crawlspaces, referencing R-values if possible.
+                6. Interior Finishes (Organized by Room/Area)
+                    - For each location (e.g., Kitchen, Master Bathroom, Laundry Room), detail the following:
+                        - Drywall: Describe the installation and finish (e.g., Level 5 smooth, texture to match existing)
+                        - Painting: Detail the application of primer and two coats of paint to walls, ceilings, and all trim (doors, casing, baseboards).
+                        - Flooring & Baseboards: Specify the type of flooring to be installed (e.g., engineered hardwood, tile, carpet) and the installation of new baseboards.
+                        - Cabinetry & Countertops: Describe the installation of new cabinets and the fabrication/installation of new countertops.
+                        - Tile Work: Detail all tile installation for floors, shower walls, shower pans, and kitchen backsplashes.
+                        - Doors & Hardware: Mention the installation of new interior doors, casing, and all associated hardware.
+                7. Final Touches & Project Completion
+                    - Appliance & Accessory Installation: List the installation of all new appliances (kitchen, laundry) and bathroom accessories.
+                    - Final Cleanup: Reiterate that the project concludes with a final cleanup of the entire job site.
+                
                 - Ensure the final text is a comprehensive narrative that walks the homeowner through the entire construction journey from start to finish.**
                 
         2.  **Nested "Remodeling place and size" Object:**
