@@ -510,3 +510,85 @@ def analyze_voice_recording(req: https_fn.Request) -> https_fn.Response:
         print(f"Error in analyze_voice_recording: {e}")
         return https_fn.Response(json.dumps({"error": str(e)}), status=500,
                                  mimetype="application/json", headers=_cors_headers_for(origin))
+
+
+@https_fn.on_request(memory=2048, timeout_sec=300)
+def generate_scope_of_work(req: https_fn.Request) -> https_fn.Response:
+    """Generates a scope of work based on line items."""
+    origin = req.headers.get("Origin")
+
+    if req.method == "OPTIONS":
+        return https_fn.Response("", status=204, headers=_cors_preflight_headers(origin))
+
+    if req.method != "POST":
+        return https_fn.Response("Method Not Allowed", status=405, headers=_cors_headers_for(origin))
+
+    try:
+        _initialize_clients()
+
+        data = req.get_json(silent=True)
+        if not data or "items" not in data:
+            return https_fn.Response(json.dumps({"error": "Bad Request: 'items' not found"}),
+                                     status=400, mimetype="application/json", headers=_cors_headers_for(origin))
+
+        items = data["items"]
+
+        # Create a detailed prompt for the AI
+        prompt = """
+        You are an expert construction project manager. Based on the following list of items and their square footage, generate a detailed, well-formatted Scope of Work suitable for a client proposal. Structure the output by area or room. For each location, use clear headings (e.g., Kitchen Remodel, Full Gut) and detail the following in plain language where applicable:
+        
+        * `Scope of Work`: **Act as a project manager writing a formal Scope of Work for a homeowner. Using all provided blueprint pages, create a thorough, step-by-step detail description of the entire project. Structure the output by area or room. For each location, use clear headings (e.g., Kitchen Remodel, Second Floor Addition, Exterior Work) and detail the following in plain language:
+                1. Pre-Construction & Project Management
+                    - Permitting & Inspections: Detail the plan to pull all necessary city permits and coordinate all required city inspections.
+                    - Site Logistics: Describe on-site management services and the setup of temporary facilities like fencing or porta potties.
+                2. Demolition & Site Preparation
+                    - Clearly state what existing structures, finishes, and systems will be removed from the interior and exterior (e.g., walls, roofing, stucco, flooring, cabinets, old plumbing/electrical).
+                    - Mention the plan for hauling and disposal of all construction debris.
+                3. Foundation & Structural Framing
+                    - Foundation: Describe all foundation work for the new addition, including excavation, rebar installation, concrete pouring for footings and pads, and any required underpinning.
+                    - Construction & Framing: Detail all new construction, including framing for the addition, tying in the new roofline, framing new walls, floors, ceilings, and any specialty items like shower niches, curbs, or raised ceilings.
+                4. Exterior Work & Finishes
+                    - Roofing: Describe the full scope of roofing work, including installation of new plywood decking, waterproofing paper, shingles, flashing, and new gutters/downspouts. Include skylight installation if applicable.
+                    - Stucco, Siding, & Veneer: Detail the application of new exterior finishes like the multi-coat stucco process, wood siding, or stone veneer.
+                    - Windows & Exterior Doors: Specify the installation of new windows and exterior doors.
+                    - Exterior Painting: List the painting scope, including primer and finish coats for trim, eaves, and exterior walls.
+                5. Major Systems & Insulation
+                    - Plumbing (P): Detail the installation of new systems, including rough plumbing with new copper lines, sewer connections, gas lines, a new tankless water heater, and the installation of all finished fixtures.
+                    - Electrical (E): Describe the scope, such as a full home rewire, main panel upgrade, installation of sub-panels, specified number of recessed lights, new outlets, switches, and finished fixtures.
+                    - Mechanical / HVAC (M): Detail the installation of new heating and cooling systems, including the furnace/heat pump, condenser, all new ductwork, and vents.
+                    - Insulation: Specify the installation of new insulation in exterior walls, ceilings, and crawlspaces, referencing R-values if possible.
+                6. Interior Finishes (Organized by Room/Area)
+                    - For each location (e.g., Kitchen, Master Bathroom, Laundry Room), detail the following:
+                        - Drywall: Describe the installation and finish (e.g., Level 5 smooth, texture to match existing)
+                        - Painting: Detail the application of primer and two coats of paint to walls, ceilings, and all trim (doors, casing, baseboards).
+                        - Flooring & Baseboards: Specify the type of flooring to be installed (e.g., engineered hardwood, tile, carpet) and the installation of new baseboards.
+                        - Cabinetry & Countertops: Describe the installation of new cabinets and the fabrication/installation of new countertops.
+                        - Tile Work: Detail all tile installation for floors, shower walls, shower pans, and kitchen backsplashes.
+                        - Doors & Hardware: Mention the installation of new interior doors, casing, and all associated hardware.
+                7. Final Touches & Project Completion
+                    - Appliance & Accessory Installation: List the installation of all new appliances (kitchen, laundry) and bathroom accessories.
+                    - Final Cleanup: Reiterate that the project concludes with a final cleanup of the entire job site.
+                
+                - Ensure the final text is a comprehensive narrative that walks the homeowner through the entire construction journey from start to finish.**
+
+        **IMPORTANT:** Your response must ONLY be the Scope of Work text. Do not include any introductory sentences, conversational text, or any text other than the scope of work itself. The output should begin directly with the first heading.
+        """
+
+        # Append the items from the request to the prompt
+        for item in items:
+            if item.get("type") and item.get("sf"):
+                prompt += f"\n- **{item['type']}**: {item['sf']} sq ft"
+
+        # Call the Gemini API
+        response = gemini_model.generate_content(prompt)
+        
+        # Extract the generated text
+        scope_of_work = response.text.strip()
+
+        return https_fn.Response(json.dumps({"scopeOfWork": scope_of_work}),
+                                 status=200, mimetype="application/json", headers=_cors_headers_for(origin))
+
+    except Exception as e:
+        print(f"Error in generate_scope_of_work: {e}")
+        return https_fn.Response(json.dumps({"error": str(e)}),
+                                 status=500, mimetype="application/json", headers=_cors_headers_for(origin))

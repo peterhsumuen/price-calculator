@@ -149,6 +149,8 @@ function PriceCalculator({ user, onLogout, onPageChange, initialData }) {
     const [blueprintUrl, setBlueprintUrl] = useState(null);
     const [analysisData, setAnalysisData] = useState(null);
     const [editingProjectId, setEditingProjectId] = useState(null);
+    const [isGenerating, setIsGenerating] = useState(false);
+    const [generationError, setGenerationError] = useState('');
 
     useEffect(() => {
         if (initialData) {
@@ -209,6 +211,37 @@ function PriceCalculator({ user, onLogout, onPageChange, initialData }) {
     const handleChange = (id, field, value) => setItems(items.map(item => item.id === id ? { ...item, [field]: value } : item));
     const handleAddItem = () => setItems([...items, { id: uuidv4(), type: '', sf: '' }]);
     const handleRemoveItem = (id) => setItems(items.filter(item => item.id !== id));
+    const handleGenerateScopeOfWork = async () => {
+        setIsGenerating(true);
+        setGenerationError('');
+        const functionUrl = 'https://generate-scope-of-work-w47bikyqya-uc.a.run.app'; 
+
+        try {
+            const payload = {
+                items: items.filter(item => item.type && item.sf), // Send only valid items
+            };
+
+            const response = await fetch(functionUrl, {
+                method: 'POST',
+                mode: 'cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.error || 'Failed to generate scope of work.');
+            }
+
+            setScopeOfWorkText(result.scopeOfWork);
+
+        } catch (err) {
+            setGenerationError(err.message);
+        } finally {
+            setIsGenerating(false);
+        }
+    };
 
     const saveProject = async () => {
         if (!projectName || !address || !clientName) {
@@ -259,7 +292,7 @@ function PriceCalculator({ user, onLogout, onPageChange, initialData }) {
                     <a role="tab" className="tab tab-active">Calculator</a>
                     <a role="tab" className="tab" onClick={() => onPageChange('analyzer')}>Blueprint Analyzer</a>
                     <a role="tab" className="tab" onClick={() => onPageChange('voiceAnalyzer')}>Voice Analyzer</a>
-                    </div>
+                </div>
 
                 <h1 className="title">{editingProjectId ? 'Modify Project' : 'Pricing Calculator'}</h1>
                 <div className="project-details">
@@ -296,6 +329,25 @@ function PriceCalculator({ user, onLogout, onPageChange, initialData }) {
                     </div>))}
                 </div>
                 <button onClick={handleAddItem} className="btn btn-secondary btn-outline w-full mt-4">+ Add Item</button>
+                
+                {/* Smart Button - Only shows if not loading data from analyzers */}
+                {!initialData?.scopeOfWork && (
+                    <>
+                        <button
+                            onClick={handleGenerateScopeOfWork}
+                            disabled={isGenerating}
+                            className="btn btn-secondary btn-outline w-full mt-4"
+                        >
+                            {isGenerating ? (
+                                <span className="loading loading-spinner"></span>
+                            ) : (
+                                'Generate Scope of Work'
+                            )}
+                        </button>
+                        {generationError && <p className="text-error text-center mt-2">{generationError}</p>}
+                    </>
+                )}
+
                 <div className="text-right text-3xl font-bold mt-6 text-success">
                     Total Price: ${totalPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
