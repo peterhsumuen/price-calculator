@@ -561,27 +561,6 @@ function BlueprintAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplet
                     </button>
                 </div>
                 {error && <div className="alert alert-error mt-4 rounded-box">{error}</div>}
-
-                {totalPages > 0 && !isAnalyzing && (
-                    <div className="mt-6">
-                        <h3 className="text-xl font-bold">Selected Pages for Analysis:</h3>
-                        <p className="text-base-content/80 mb-4">{`${selectedPages.length} out of ${totalPages} pages were selected.`}</p>
-                        <div className="bg-base-200 p-4 rounded-box max-h-96 overflow-auto">
-                            <Document file={blueprintFile}>
-                                {Array.from(new Array(totalPages), (el, index) => (
-                                    <div 
-                                        key={`page_${index + 1}`} 
-                                        className={`mb-4 border-4 ${selectedPages.includes(index) ? 'border-success' : 'border-transparent'}`}
-                                    >
-                                        <Page pageNumber={index + 1} width={800} />
-                                        <p className="text-center text-sm mt-1">{`Page ${index + 1}`}{selectedPages.includes(index) ? ' (Selected)' : ''}</p>
-                                    </div>
-                                ))}
-                            </Document>
-                        </div>
-                    </div>
-                )}
-                
                 {analysisResult && (
                     <>
                         <AnalysisResultDisplay analysisResult={analysisResult} />
