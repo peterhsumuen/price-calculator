@@ -77,6 +77,7 @@ This app is deployed on GitHub Pages. To deploy your own version, you can use th
 
 ```sh
 npm run deploy
+```
 
 The Firebase functions are deployed separately:
 `firebase deploy --only functions`
