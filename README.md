@@ -1,21 +1,85 @@
-# Price Calculator
+# AuraBid: Your AI Co-pilot for Construction Bidding
 
-This is a web application designed for construction project estimation and management. It provides tools for calculating project costs, storing project records, and leveraging AI-powered analysis of blueprints and voice recordings to streamline the estimation process.
+AuraBid is a web application designed to streamline the construction project estimation and management process. Go from blueprint to bid in minutes with powerful tools for blueprint and voice analysis, ensuring unparalleled accuracy for your next project.
+
+## About The Project
+
+This tool was built to solve the time-consuming and often inaccurate process of construction bidding. AuraBid provides a suite of tools that leverage AI to automate and enhance project estimation, helping you create more accurate bids in a fraction of the time.
+
+This application consists of three main parts: a dynamic price calculator, a blueprint analyzer, and a voice analyzer. These tools work together to provide a seamless workflow from initial project analysis to final bid creation. All project records are securely stored and can be easily accessed, modified, or deleted.
 
 ## Features
 
-* **Price Calculator**: A dynamic calculator to estimate project costs. Users can add multiple line items, specify the type of work (e.g., "Full gut", "Kitchen", "Bathroom"), and input the square footage to get a real-time price estimate.
-* **Project Records**: All saved projects are stored in a database and can be viewed on the "Records" page. Users can view the details of each project, including the scope of work, itemized list, and final price. There are also options to modify or delete existing projects.
-* **Blueprint Analyzer**: This feature allows users to upload a blueprint file (PNG, JPG, or PDF). The application then uses an AI model to analyze the blueprint and automatically extract key information such as project name, address, client name, and the square footage of different areas. This extracted data can then be used to pre-fill the price calculator.
-* **Voice Analyzer**: Users can record their voice directly in the application. The recorded audio is then transcribed and analyzed by an AI model to extract project details, which can be used to populate the price calculator.
-* **Authentication**: The application uses Firebase for user authentication, ensuring that each user's project data is secure and private.
+* **Dynamic Price Calculator**: Estimate project costs with ease.
+    * Add and remove line items for different job types (e.g., "Full Gut," "Kitchen Remodel").
+    * Input square footage to get real-time price estimates based on predefined pricing rules.
+    * Save, view, modify, and delete project records.
+* **Blueprint Analyzer**: Upload blueprint files (PNG, JPG, or PDF) and let our AI extract key details.
+    * Automatically extracts project name, address, client name, and square footage of different areas.
+    * Pre-fills the price calculator with the extracted data.
+* **Voice Analyzer**: Record your voice directly in the app.
+    * Our AI will transcribe and analyze the audio to populate project details in the price calculator.
+    * Streamlines your workflow by allowing you to dictate project details on the go.
+* **Authentication**: Secure user authentication powered by Firebase ensures that your project data is private and protected.
 
-## Tech Stack
+## Technical Deep Dive
 
-* **Frontend**: React.js
-* **Backend**: Firebase (Authentication, Firestore Database, Cloud Functions)
-* **AI/ML**: Google Cloud AI Platform (for blueprint and voice analysis)
+AuraBid is a full-stack application built with a modern tech stack:
 
+* **Frontend**: The user interface is built with **React.js** and styled with **DaisyUI** and **Tailwind CSS**. This provides a responsive and intuitive user experience.
+* **Backend**: The backend is powered by **Firebase**, which provides a suite of services including:
+    * **Firebase Authentication**: For secure user login and data protection.
+    * **Firestore Database**: A NoSQL database for storing project records.
+    * **Cloud Functions**: Serverless functions that handle the AI-powered analysis of blueprints and voice recordings.
+* **AI/ML**: The AI-powered features are built on top of **Google Cloud AI Platform**:
+    * The **Blueprint Analyzer** uses a custom AI model to analyze uploaded images and PDFs, extracting key project details.
+    * The **Voice Analyzer** uses Google's speech-to-text and natural language processing capabilities to transcribe and analyze voice recordings.
+
+## Getting Started
+
+To get a local copy up and running, follow these simple steps.
+
+### Prerequisites
+
+* npm
+    ```sh
+    npm install npm@latest -g
+    ```
+
+### Installation
+
+1.  Clone the repo
+    ```sh
+    git clone [https://github.com/peterhsumuen/price-calculator.git](https://github.com/peterhsumuen/price-calculator.git)
+    ```
+2.  Install NPM packages
+    ```sh
+    npm install
+    ```
+3.  Enter your API in a `.env` file in the root of your project
+    ```js
+    REACT_APP_FIREBASE_API_KEY = 'ENTER YOUR API';
+    REACT_APP_FIREBASE_AUTH_DOMAIN = 'ENTER YOUR API';
+    REACT_APP_FIREBASE_PROJECT_ID = 'ENTER YOUR API';
+    REACT_APP_FIREBASE_STORAGE_BUCKET = 'ENTER YOUR API';
+    REACT_APP_FIREBASE_MESSAGING_SENDER_ID = 'ENTER YOUR API';
+    REACT_APP_FIREBASE_APP_ID = 'ENTER YOUR API';
+    ```
+
+## Usage
+
+* To run the app in the development mode, use `npm start`.
+* To build the app for production, use `npm run build`.
+
+## Deployment
+
+This app is deployed on GitHub Pages. To deploy your own version, you can use the `gh-pages` package:
+
+```sh
+npm run deploy
+
+The Firebase functions are deployed separately:
+`firebase deploy --only functions`
 
 
 ### `npm start`
