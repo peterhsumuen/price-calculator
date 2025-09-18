@@ -105,7 +105,7 @@ def _decode_data_uri(data_uri):
 
 # --- Cloud Functions ---
 
-@https_fn.on_request(memory=4096, timeout_sec=540)
+@https_fn.on_request(memory=4096, timeout_sec=3600)
 def analyze_blueprint(req: https_fn.Request) -> https_fn.Response:
     origin = req.headers.get("Origin")
 
@@ -116,8 +116,9 @@ def analyze_blueprint(req: https_fn.Request) -> https_fn.Response:
         return https_fn.Response("Method Not Allowed", status=405, headers=_cors_headers_for(origin))
 
     try:
-        _initialize_clients()  # Ensure clients are ready
+        _initialize_clients()
 
+        TEXT_THRESHOLD = 1500
         prompt = """
         Your primary goal is to analyze all provided blueprint pages to generate a clear "Scope of Work". After that, fill in any other details you can find. Your task is to extract all information and format it into a precise JSON structure.
 
@@ -201,19 +202,35 @@ def analyze_blueprint(req: https_fn.Request) -> https_fn.Response:
         raw_bytes, mime_type = _decode_data_uri(data["fileData"])
 
         content_for_gemini = [prompt]
-        first_page_bytes = None  # To store the first page for upload
+        first_page_bytes = None
+        selected_pages_indices = []
+        page_count = 0
 
         if mime_type.lower() == "application/pdf":
             with fitz.open(stream=raw_bytes, filetype="pdf") as doc:
-                for page_num in range(doc.page_count):
+                page_count = doc.page_count
+                for page_num in range(page_count):
                     page = doc.load_page(page_num)
-                    pix = page.get_pixmap(dpi=300)
-                    image_bytes = pix.tobytes("png")
+                    
                     if page_num == 0:
-                        first_page_bytes = image_bytes  # Save first page
-                    content_for_gemini.append(Part.from_data(data=image_bytes, mime_type="image/png"))
+                        pix = page.get_pixmap(dpi=300)
+                        first_page_bytes = pix.tobytes("png")
+                        selected_pages_indices.append(page_num)
+                        # --- THIS LINE IS THE FIX ---
+                        # It now correctly uses first_page_bytes instead of the unassigned image_bytes
+                        content_for_gemini.append(Part.from_data(data=first_page_bytes, mime_type="image/png"))
+                        continue
+
+                    text = page.get_text("text")
+                    if len(text) > TEXT_THRESHOLD:
+                        selected_pages_indices.append(page_num)
+                        pix = page.get_pixmap(dpi=300)
+                        image_bytes = pix.tobytes("png")
+                        content_for_gemini.append(Part.from_data(data=image_bytes, mime_type="image/png"))
         else:
-            first_page_bytes = raw_bytes  # It's just a single image
+            page_count = 1
+            selected_pages_indices.append(0)
+            first_page_bytes = raw_bytes
             content_for_gemini.append(Part.from_data(data=raw_bytes, mime_type=mime_type))
 
         if not first_page_bytes:
@@ -223,21 +240,25 @@ def analyze_blueprint(req: https_fn.Request) -> https_fn.Response:
         bucket = storage_client.bucket(bucket_name)
         fname = f"blueprints/{data['userId']}/{uuid.uuid4()}.png"
         blob = bucket.blob(fname)
-        # Upload only the first page as a thumbnail.
         blob.upload_from_string(first_page_bytes, content_type="image/png")
 
-        # Send the full list of content (prompt + all images) to Gemini.
         response = gemini_model.generate_content(content_for_gemini)
 
         raw_text = response.text.strip().replace("```json", "").replace("```", "")
         analysis = json.loads(raw_text)
 
-        response_data = {"analysisResult": analysis, "blueprintUrl": blob.public_url}
+        response_data = {
+            "analysisResult": analysis,
+            "blueprintUrl": blob.public_url,
+            "selectedPages": selected_pages_indices,
+            "totalPages": page_count
+        }
         return https_fn.Response(json.dumps(response_data), status=200, mimetype="application/json", headers=_cors_headers_for(origin))
 
     except Exception as e:
         print(f"Error in analyze_blueprint: {e}")
         return https_fn.Response(json.dumps({"error": str(e)}), status=500, mimetype="application/json", headers=_cors_headers_for(origin))
+
 
 
 @https_fn.on_request(memory=8192, timeout_sec=1800)

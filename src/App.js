@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { initializeApp } from 'firebase/app';
+import { Document, Page, pdfjs } from 'react-pdf';
+import 'react-pdf/dist/Page/AnnotationLayer.css';
+import 'react-pdf/dist/Page/TextLayer.css';
 import './App.css';
 import WelcomePage from './WelcomePage';
 import LearnMorePage from './LearnMorePage';
@@ -27,6 +30,11 @@ import {
     deleteDoc,
     serverTimestamp
 } from 'firebase/firestore';
+
+pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+  'pdfjs-dist/build/pdf.worker.min.mjs',   // <-- .mjs (or 'pdf.worker.mjs')
+  import.meta.url,
+).toString();
 
 // Firebase configuration - NOTE: Using placeholder for security
 const firebaseConfig = {
@@ -482,6 +490,8 @@ function BlueprintAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplet
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [error, setError] = useState('');
     const [uploadedBlueprintUrl, setUploadedBlueprintUrl] = useState(null);
+    const [selectedPages, setSelectedPages] = useState([]);
+    const [totalPages, setTotalPages] = useState(0);
 
     const handleFileChange = (e) => {
         const file = e.target.files[0];
@@ -495,6 +505,8 @@ function BlueprintAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplet
     const handleAnalyze = async () => {
         if (!blueprintFile) { setError('Please select a file.'); return; }
         setIsAnalyzing(true); setError(''); setAnalysisResult(null); setUploadedBlueprintUrl(null);
+        setSelectedPages([]);
+        setTotalPages(0);
         const functionUrl = 'https://analyze-blueprint-w47bikyqya-uc.a.run.app';
         const getBase64 = (file) => new Promise((resolve, reject) => {
             const reader = new FileReader(); reader.readAsDataURL(file);
@@ -504,11 +516,13 @@ function BlueprintAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplet
             const fileData = await getBase64(blueprintFile);
             const payload = { fileData, userId: user.uid };
             const response = await fetch(functionUrl, { method: 'POST', mode: 'cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-            const text = await response.text();
-            let parsed; try { parsed = JSON.parse(text); } catch { parsed = { details: text }; }
-            if (!response.ok) throw new Error(parsed.details || 'The server returned an error.');
+            const parsed = await response.json();
+            if (!response.ok) throw new Error(parsed.error || 'The server returned an error.');
             setAnalysisResult(parsed.analysisResult || {});
             setUploadedBlueprintUrl(parsed.blueprintUrl || null);
+            setSelectedPages(parsed.selectedPages || []);
+            setTotalPages(parsed.totalPages || 0);
+
         } catch (err) { setError(`Analysis failed: ${err.message}`); } finally { setIsAnalyzing(false); }
     };
 
@@ -538,7 +552,7 @@ function BlueprintAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplet
                     <a role="tab" className="tab" onClick={() => onPageChange('voiceAnalyzer')}>Voice Analyzer</a>
                     </div>
                 <h1 className="title">Blueprint Analyzer</h1>
-                <p>Upload a blueprint (PNG, JPG, or PDF) to automatically extract project details. The analysis time may take up to 10 minutes depended on the file size.</p>
+                <p>Upload a blueprint (PNG, JPG, or PDF) to automatically extract project details.</p>
                 <div className="form-control w-full mt-4">
                     <input type="file" onChange={handleFileChange} accept="image/png, image/jpeg, application/pdf" className="file-input file-input-bordered w-full rounded-box" />
                     <button onClick={handleAnalyze} disabled={isAnalyzing || !blueprintFile} className="btn btn-secondary btn-outline mt-4">
@@ -547,8 +561,27 @@ function BlueprintAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplet
                     </button>
                 </div>
                 {error && <div className="alert alert-error mt-4 rounded-box">{error}</div>}
+
+                {totalPages > 0 && !isAnalyzing && (
+                    <div className="mt-6">
+                        <h3 className="text-xl font-bold">Selected Pages for Analysis:</h3>
+                        <p className="text-base-content/80 mb-4">{`${selectedPages.length} out of ${totalPages} pages were selected.`}</p>
+                        <div className="bg-base-200 p-4 rounded-box max-h-96 overflow-auto">
+                            <Document file={blueprintFile}>
+                                {Array.from(new Array(totalPages), (el, index) => (
+                                    <div 
+                                        key={`page_${index + 1}`} 
+                                        className={`mb-4 border-4 ${selectedPages.includes(index) ? 'border-success' : 'border-transparent'}`}
+                                    >
+                                        <Page pageNumber={index + 1} width={800} />
+                                        <p className="text-center text-sm mt-1">{`Page ${index + 1}`}{selectedPages.includes(index) ? ' (Selected)' : ''}</p>
+                                    </div>
+                                ))}
+                            </Document>
+                        </div>
+                    </div>
+                )}
                 
-                {/* MODIFIED: Use the new display component */}
                 {analysisResult && (
                     <>
                         <AnalysisResultDisplay analysisResult={analysisResult} />
