@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { initializeApp } from 'firebase/app';
 import { Document, Page, pdfjs } from 'react-pdf';
+import { PDFDocument } from 'pdf-lib'
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 import './App.css';
@@ -481,6 +482,33 @@ function RecordsPage({ user, onLogout, onPageChange }) {
     );
 }
 
+// --- Function to merge analysis results from chunks ---
+const _mergeAnalysisResults = (results) => {
+    if (!results || results.length === 0) {
+        return {};
+    }
+
+    const merged = results[0];
+    for (const result of results.slice(1)) {
+        for (const [key, value] of Object.entries(result)) {
+            if (key === "Scope of Work" && value) {
+                merged[key] = (merged[key] || "") + "\n\n" + value;
+            } else if (key === "Remodeling place and size" && typeof value === 'object' && value !== null) {
+                if (!merged[key]) merged[key] = {};
+                for (const [subKey, subValue] of Object.entries(value)) {
+                    if (typeof subValue === 'number') {
+                        merged[key][subKey] = (merged[key][subKey] || 0) + subValue;
+                    } else if (subValue !== null && merged[key][subKey] === null) {
+                        merged[key][subKey] = subValue;
+                    }
+                }
+            } else if (value !== null && (merged[key] === null || merged[key] === undefined || merged[key] === 'N/A')) {
+                 merged[key] = value;
+            }
+        }
+    }
+    return merged;
+};
 
 
 // Blueprint Analyzer Page Component
@@ -489,6 +517,7 @@ function BlueprintAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplet
     const [analysisResult, setAnalysisResult] = useState(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [error, setError] = useState('');
+    const [progressMessage, setProgressMessage] = useState('');
     const [uploadedBlueprintUrl, setUploadedBlueprintUrl] = useState(null);
     const [selectedPages, setSelectedPages] = useState([]);
     const [totalPages, setTotalPages] = useState(0);
@@ -503,28 +532,105 @@ function BlueprintAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplet
     };
 
     const handleAnalyze = async () => {
-        if (!blueprintFile) { setError('Please select a file.'); return; }
-        setIsAnalyzing(true); setError(''); setAnalysisResult(null); setUploadedBlueprintUrl(null);
-        setSelectedPages([]);
-        setTotalPages(0);
-        const functionUrl = 'https://analyze-blueprint-w47bikyqya-uc.a.run.app';
-        const getBase64 = (file) => new Promise((resolve, reject) => {
-            const reader = new FileReader(); reader.readAsDataURL(file);
-            reader.onload = () => resolve(reader.result); reader.onerror = (error) => reject(error);
-        });
-        try {
-            const fileData = await getBase64(blueprintFile);
-            const payload = { fileData, userId: user.uid };
-            const response = await fetch(functionUrl, { method: 'POST', mode: 'cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-            const parsed = await response.json();
-            if (!response.ok) throw new Error(parsed.error || 'The server returned an error.');
-            setAnalysisResult(parsed.analysisResult || {});
-            setUploadedBlueprintUrl(parsed.blueprintUrl || null);
-            setSelectedPages(parsed.selectedPages || []);
-            setTotalPages(parsed.totalPages || 0);
+    if (!blueprintFile) {
+        setError('Please select a file.');
+        return;
+    }
 
-        } catch (err) { setError(`Analysis failed: ${err.message}`); } finally { setIsAnalyzing(false); }
-    };
+    setIsAnalyzing(true);
+    setError('');
+    setProgressMessage(''); // Clear previous messages
+    setAnalysisResult(null);
+    setUploadedBlueprintUrl(null);
+    setSelectedPages([]);
+    setTotalPages(0);
+
+    const functionUrl = 'https://analyze-blueprint-w47bikyqya-uc.a.run.app';
+    const CHUNK_SIZE = 5;
+    const MAX_FILE_SIZE = 10 * 1024 * 1024;
+
+    if (blueprintFile.type === 'application/pdf' && blueprintFile.size > MAX_FILE_SIZE) {
+        try {
+            const arrayBuffer = await blueprintFile.arrayBuffer();
+            const pdfDoc = await PDFDocument.load(arrayBuffer);
+            const totalPages = pdfDoc.getPageCount();
+            setTotalPages(totalPages);
+
+            let allAnalysisResults = [];
+            let firstPageUrl = null;
+
+            for (let i = 0; i < totalPages; i += CHUNK_SIZE) {
+                const chunkEnd = Math.min(i + CHUNK_SIZE, totalPages);
+                // Use the new state for progress updates
+                setProgressMessage(`Analyzing pages ${i + 1}-${chunkEnd} of ${totalPages}...`);
+
+                const subPdf = await PDFDocument.create();
+                const copiedPages = await subPdf.copyPages(pdfDoc, Array.from({ length: chunkEnd - i }, (_, k) => i + k));
+                copiedPages.forEach(page => subPdf.addPage(page));
+                
+                const chunkBytes = await subPdf.save();
+                const chunkBlob = new Blob([chunkBytes], { type: 'application/pdf' });
+
+                const fileData = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.readAsDataURL(chunkBlob);
+                    reader.onload = () => resolve(reader.result);
+                    reader.onerror = (error) => reject(error);
+                });
+
+                const payload = { fileData, userId: user.uid };
+                const response = await fetch(functionUrl, {
+                    method: 'POST',
+                    mode: 'cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const parsed = await response.json();
+                if (!response.ok) throw new Error(parsed.error || `Chunk ${i / CHUNK_SIZE + 1} failed.`);
+                
+                allAnalysisResults.push(parsed.analysisResult);
+                if (i === 0) {
+                    firstPageUrl = parsed.blueprintUrl;
+                }
+            }
+
+            const finalAnalysis = _mergeAnalysisResults(allAnalysisResults);
+            setAnalysisResult(finalAnalysis);
+            setUploadedBlueprintUrl(firstPageUrl);
+            setProgressMessage(''); // Clear progress message on success
+
+        } catch (err) {
+            setError(`Analysis failed: ${err.message}`);
+            setProgressMessage(''); // Clear progress message on failure
+        } finally {
+            setIsAnalyzing(false);
+        }
+        return;
+    }
+    
+    // Original logic for smaller files
+    const getBase64 = (file) => new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = (error) => reject(error);
+    });
+
+    try {
+        setProgressMessage('Analyzing...'); // Add progress for smaller files too
+        const fileData = await getBase64(blueprintFile);
+        const payload = { fileData, userId: user.uid };
+        const response = await fetch(functionUrl, { method: 'POST', mode: 'cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        const parsed = await response.json();
+        if (!response.ok) throw new Error(parsed.error || 'The server returned an error.');
+        setAnalysisResult(parsed.analysisResult || {});
+        setUploadedBlueprintUrl(parsed.blueprintUrl || null);
+        setSelectedPages(parsed.selectedPages || []);
+        setTotalPages(parsed.totalPages || 0);
+
+    } catch (err) { setError(`Analysis failed: ${err.message}`); } finally { setIsAnalyzing(false); setProgressMessage(''); }
+};
 
     const handleUseInCalculator = () => {
         if (!analysisResult) return;
@@ -561,6 +667,12 @@ function BlueprintAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplet
                     </button>
                 </div>
                 {error && <div className="alert alert-error mt-4 rounded-box">{error}</div>}
+                {progressMessage && !error && (
+                    <div className="alert alert-info mt-4 rounded-box">
+                        <span className="loading loading-spinner"></span>
+                        {progressMessage}
+                    </div>
+                )}
                 {analysisResult && (
                     <>
                         <AnalysisResultDisplay analysisResult={analysisResult} />

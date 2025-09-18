@@ -2,7 +2,7 @@ import uuid
 import base64
 import json
 import os
-import fitz  # PyMuPDF
+import fitz  
 import firebase_admin
 from firebase_functions import https_fn, options
 
@@ -103,6 +103,30 @@ def _decode_data_uri(data_uri):
     mime_type = header.split(";")[0][5:] if header.startswith("data:") else "application/octet-stream"
     return base64.b64decode(b64_data), mime_type
 
+def _merge_analysis_results(results):
+    """
+    Merges a list of JSON analysis results from Gemini into a single result.
+    This is a simple merging strategy. You may need to make it more sophisticated
+    based on your specific needs.
+    """
+    if not results:
+        return {}
+
+    merged = results[0]
+    for result in results[1:]:
+        for key, value in result.items():
+            if key == "Scope of Work":
+                merged[key] += "\n\n" + value
+            elif isinstance(value, dict) and isinstance(merged.get(key), dict):
+                for sub_key, sub_value in value.items():
+                    if isinstance(sub_value, (int, float)) and isinstance(merged[key].get(sub_key), (int, float)):
+                        merged[key][sub_key] = (merged[key].get(sub_key, 0) or 0) + (sub_value or 0)
+                    elif sub_value is not None:
+                        merged[key][sub_key] = sub_value
+            elif value is not None:
+                merged[key] = value
+    return merged
+
 # --- Cloud Functions ---
 
 @https_fn.on_request(memory=8192, timeout_sec=3600)
@@ -118,7 +142,10 @@ def analyze_blueprint(req: https_fn.Request) -> https_fn.Response:
     try:
         _initialize_clients()
 
+        # --- NEW: Configuration for chunking ---
+        CHUNK_SIZE = 5  # Process 5 pages at a time. Adjust as needed.
         TEXT_THRESHOLD = 1500
+        
         prompt = """
         Your primary goal is to analyze all provided blueprint pages to generate a clear "Scope of Work". After that, fill in any other details you can find. Your task is to extract all information and format it into a precise JSON structure.
 
@@ -201,40 +228,56 @@ def analyze_blueprint(req: https_fn.Request) -> https_fn.Response:
 
         raw_bytes, mime_type = _decode_data_uri(data["fileData"])
 
-        content_for_gemini = [prompt]
+        all_analysis_results = []
         first_page_bytes = None
-        selected_pages_indices = []
         page_count = 0
+        selected_pages_indices = []
 
         if mime_type.lower() == "application/pdf":
             with fitz.open(stream=raw_bytes, filetype="pdf") as doc:
                 page_count = doc.page_count
-                for page_num in range(page_count):
-                    page = doc.load_page(page_num)
+                
+                # --- MODIFIED: Process in chunks ---
+                for i in range(0, page_count, CHUNK_SIZE):
+                    chunk_pages = list(range(i, min(i + CHUNK_SIZE, page_count)))
+                    content_for_gemini = [prompt]
                     
-                    if page_num == 0:
-                        pix = page.get_pixmap(dpi=300)
-                        first_page_bytes = pix.tobytes("png")
-                        selected_pages_indices.append(page_num)
-                        # --- THIS LINE IS THE FIX ---
-                        # It now correctly uses first_page_bytes instead of the unassigned image_bytes
-                        content_for_gemini.append(Part.from_data(data=first_page_bytes, mime_type="image/png"))
-                        continue
+                    for page_num in chunk_pages:
+                        page = doc.load_page(page_num)
+                        
+                        if first_page_bytes is None:
+                            pix = page.get_pixmap(dpi=300)
+                            first_page_bytes = pix.tobytes("png")
 
-                    text = page.get_text("text")
-                    if len(text) > TEXT_THRESHOLD:
-                        selected_pages_indices.append(page_num)
-                        pix = page.get_pixmap(dpi=300)
-                        image_bytes = pix.tobytes("png")
-                        content_for_gemini.append(Part.from_data(data=image_bytes, mime_type="image/png"))
-        else:
+                        text = page.get_text("text")
+                        if len(text) > TEXT_THRESHOLD or page_num == 0:
+                            selected_pages_indices.append(page_num)
+                            pix = page.get_pixmap(dpi=300)
+                            image_bytes = pix.tobytes("png")
+                            content_for_gemini.append(Part.from_data(data=image_bytes, mime_type="image/png"))
+                    
+                    if len(content_for_gemini) > 1: # Only make a request if there are pages in the chunk
+                        response = gemini_model.generate_content(content_for_gemini)
+                        raw_text = response.text.strip().replace("```json", "").replace("```", "")
+                        analysis = json.loads(raw_text)
+                        all_analysis_results.append(analysis)
+
+        else: # Handle single image files as before
             page_count = 1
             selected_pages_indices.append(0)
             first_page_bytes = raw_bytes
-            content_for_gemini.append(Part.from_data(data=raw_bytes, mime_type=mime_type))
+            content_for_gemini = [prompt, Part.from_data(data=raw_bytes, mime_type=mime_type)]
+            
+            response = gemini_model.generate_content(content_for_gemini)
+            raw_text = response.text.strip().replace("```json", "").replace("```", "")
+            analysis = json.loads(raw_text)
+            all_analysis_results.append(analysis)
 
         if not first_page_bytes:
             raise ValueError("No image data could be processed for upload.")
+        
+        # --- NEW: Merge the results from all chunks ---
+        final_analysis = _merge_analysis_results(all_analysis_results)
 
         bucket_name = _get_bucket_name()
         bucket = storage_client.bucket(bucket_name)
@@ -242,13 +285,8 @@ def analyze_blueprint(req: https_fn.Request) -> https_fn.Response:
         blob = bucket.blob(fname)
         blob.upload_from_string(first_page_bytes, content_type="image/png")
 
-        response = gemini_model.generate_content(content_for_gemini)
-
-        raw_text = response.text.strip().replace("```json", "").replace("```", "")
-        analysis = json.loads(raw_text)
-
         response_data = {
-            "analysisResult": analysis,
+            "analysisResult": final_analysis,
             "blueprintUrl": blob.public_url,
             "selectedPages": selected_pages_indices,
             "totalPages": page_count
