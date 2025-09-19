@@ -297,7 +297,63 @@ def analyze_blueprint(req: https_fn.Request) -> https_fn.Response:
         print(f"Error in analyze_blueprint: {e}")
         return https_fn.Response(json.dumps({"error": str(e)}), status=500, mimetype="application/json", headers=_cors_headers_for(origin))
 
+@https_fn.on_request(memory=4096, timeout_sec=300)
+def synthesize_scope_of_work(req: https_fn.Request) -> https_fn.Response:
+    """
+    Takes multiple 'Scope of Work' texts and synthesizes them into one cohesive document.
+    """
+    origin = req.headers.get("Origin")
 
+    if req.method == "OPTIONS":
+        return https_fn.Response("", status=204, headers=_cors_preflight_headers(origin))
+
+    if req.method != "POST":
+        return https_fn.Response("Method Not Allowed", status=405, headers=_cors_headers_for(origin))
+
+    try:
+        _initialize_clients()
+
+        data = req.get_json(silent=True)
+        if not data or "text" not in data:
+            return https_fn.Response(
+                json.dumps({"error": "Bad Request: 'text' field not found"}),
+                status=400, mimetype="application/json", headers=_cors_headers_for(origin)
+            )
+
+        combined_text = data["text"]
+
+        prompt = f"""
+        You are an expert construction project manager. The following text contains one or more "Scope of Work" documents that have been combined from different pages of a blueprint. The text is repetitive and disjointed.
+
+        Your task is to synthesize all the information into a single, cohesive, well-organized "Scope of Work".
+        - Read all the provided text.
+        - Identify all unique tasks, materials, and steps.
+        - Remove all duplicate information and redundant phrasing.
+        - Organize the final output by construction phase (e.g., Demolition, Foundation, Framing, Exterior Work, etc.) as detailed in the original instructions.
+        - The final output should be a single, clean, and comprehensive narrative that is easy for a homeowner to understand.
+        - Do not add any introductory sentences, conversational text, or any text other than the scope of work itself. The output should begin directly with the first heading (e.g., ### Pre-Construction & Project Management).
+
+        Here is the combined text to synthesize:
+        ---
+        {combined_text}
+        ---
+        """
+
+        synthesis_model = GenerativeModel("gemini-2.5-pro")
+        response = synthesis_model.generate_content(prompt)
+        synthesized_text = response.text.strip()
+
+        return https_fn.Response(
+            json.dumps({"synthesizedScope": synthesized_text}),
+            status=200, mimetype="application/json", headers=_cors_headers_for(origin)
+        )
+
+    except Exception as e:
+        print(f"Error in synthesize_scope_of_work: {e}")
+        return https_fn.Response(
+            json.dumps({"error": str(e)}),
+            status=500, mimetype="application/json", headers=_cors_headers_for(origin)
+        )
 
 @https_fn.on_request(memory=8192, timeout_sec=1800)
 def analyze_voice_recording(req: https_fn.Request) -> https_fn.Response:

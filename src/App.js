@@ -512,7 +512,7 @@ const _mergeAnalysisResults = (results) => {
 
 
 // Blueprint Analyzer Page Component
-function BlueprintAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplete }) {
+function BlueprintAnalyzerPage({ user, onLogout, onPageChange }) {
     const [blueprintFile, setBlueprintFile] = useState(null);
     const [analysisResult, setAnalysisResult] = useState(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -525,113 +525,120 @@ function BlueprintAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplet
     const handleFileChange = (e) => {
         const file = e.target.files[0];
         if (file && (file.type === 'image/png' || file.type === 'image/jpeg' || file.type === 'application/pdf')) {
-            setBlueprintFile(file); setError('');
+            setBlueprintFile(file);
+            setError('');
+            setProgressMessage('');
+            setAnalysisResult(null);
         } else {
-            setBlueprintFile(null); setError('Please select a valid image (PNG, JPG) or PDF file.');
+            setBlueprintFile(null);
+            setError('Please select a valid image (PNG, JPG) or PDF file.');
         }
     };
 
     const handleAnalyze = async () => {
-    if (!blueprintFile) {
-        setError('Please select a file.');
-        return;
-    }
+        if (!blueprintFile) {
+            setError('Please select a file.');
+            return;
+        }
 
-    setIsAnalyzing(true);
-    setError('');
-    setProgressMessage(''); // Clear previous messages
-    setAnalysisResult(null);
-    setUploadedBlueprintUrl(null);
-    setSelectedPages([]);
-    setTotalPages(0);
+        setIsAnalyzing(true);
+        setError('');
+        setProgressMessage('');
+        setAnalysisResult(null);
+        setUploadedBlueprintUrl(null);
+        setSelectedPages([]);
+        setTotalPages(0);
 
-    const functionUrl = 'https://analyze-blueprint-w47bikyqya-uc.a.run.app';
-    const CHUNK_SIZE = 5;
-    const MAX_FILE_SIZE = 10 * 1024 * 1024;
+        const analyzeUrl = 'https://analyze-blueprint-w47bikyqya-uc.a.run.app';
+        const synthesizeUrl = 'https://synthesize-scope-of-work-w47bikyqya-uc.a.run.app';
+        const CHUNK_SIZE = 5;
+        const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
-    if (blueprintFile.type === 'application/pdf' && blueprintFile.size > MAX_FILE_SIZE) {
+        const wasChunked = blueprintFile.type === 'application/pdf' && blueprintFile.size > MAX_FILE_SIZE;
+
         try {
-            const arrayBuffer = await blueprintFile.arrayBuffer();
-            const pdfDoc = await PDFDocument.load(arrayBuffer);
-            const totalPages = pdfDoc.getPageCount();
-            setTotalPages(totalPages);
+            let finalAnalysis;
+            let firstPageUrl;
 
-            let allAnalysisResults = [];
-            let firstPageUrl = null;
+            if (wasChunked) {
+                const arrayBuffer = await blueprintFile.arrayBuffer();
+                const pdfDoc = await PDFDocument.load(arrayBuffer);
+                const totalPages = pdfDoc.getPageCount();
+                setTotalPages(totalPages);
+                let allAnalysisResults = [];
 
-            for (let i = 0; i < totalPages; i += CHUNK_SIZE) {
-                const chunkEnd = Math.min(i + CHUNK_SIZE, totalPages);
-                // Use the new state for progress updates
-                setProgressMessage(`Analyzing pages ${i + 1}-${chunkEnd} of ${totalPages}...`);
+                for (let i = 0; i < totalPages; i += CHUNK_SIZE) {
+                    const chunkEnd = Math.min(i + CHUNK_SIZE, totalPages);
+                    setProgressMessage(`Analyzing pages ${i + 1}-${chunkEnd} of ${totalPages}...`);
 
-                const subPdf = await PDFDocument.create();
-                const copiedPages = await subPdf.copyPages(pdfDoc, Array.from({ length: chunkEnd - i }, (_, k) => i + k));
-                copiedPages.forEach(page => subPdf.addPage(page));
+                    const subPdf = await PDFDocument.create();
+                    const copiedPages = await subPdf.copyPages(pdfDoc, Array.from({ length: chunkEnd - i }, (_, k) => i + k));
+                    copiedPages.forEach(page => subPdf.addPage(page));
+                    
+                    const chunkBytes = await subPdf.save();
+                    const chunkBlob = new Blob([chunkBytes], { type: 'application/pdf' });
+
+                    const fileData = await new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.readAsDataURL(chunkBlob);
+                        reader.onload = () => resolve(reader.result);
+                        reader.onerror = (error) => reject(error);
+                    });
+
+                    const payload = { fileData, userId: user.uid };
+                    const response = await fetch(analyzeUrl, { method: 'POST', mode: 'cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                    const parsed = await response.json();
+
+                    if (!response.ok) throw new Error(parsed.error || `Chunk ${i / CHUNK_SIZE + 1} failed.`);
+                    
+                    allAnalysisResults.push(parsed.analysisResult);
+                    if (i === 0) firstPageUrl = parsed.blueprintUrl;
+                }
+
+                finalAnalysis = _mergeAnalysisResults(allAnalysisResults);
                 
-                const chunkBytes = await subPdf.save();
-                const chunkBlob = new Blob([chunkBytes], { type: 'application/pdf' });
+                if (finalAnalysis['Scope of Work']) {
+                    setProgressMessage('Finalizing scope of work...');
+                    const synthResponse = await fetch(synthesizeUrl, {
+                        method: 'POST',
+                        mode: 'cors',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ text: finalAnalysis['Scope of Work'] })
+                    });
+                    const synthResult = await synthResponse.json();
+                    if (!synthResponse.ok) throw new Error(synthResult.error || 'Failed to synthesize scope of work.');
+                    finalAnalysis['Scope of Work'] = synthResult.synthesizedScope;
+                }
 
+            } else {
+                setProgressMessage('Analyzing...');
                 const fileData = await new Promise((resolve, reject) => {
                     const reader = new FileReader();
-                    reader.readAsDataURL(chunkBlob);
+                    reader.readAsDataURL(blueprintFile);
                     reader.onload = () => resolve(reader.result);
                     reader.onerror = (error) => reject(error);
                 });
-
                 const payload = { fileData, userId: user.uid };
-                const response = await fetch(functionUrl, {
-                    method: 'POST',
-                    mode: 'cors',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-
+                const response = await fetch(analyzeUrl, { method: 'POST', mode: 'cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
                 const parsed = await response.json();
-                if (!response.ok) throw new Error(parsed.error || `Chunk ${i / CHUNK_SIZE + 1} failed.`);
-                
-                allAnalysisResults.push(parsed.analysisResult);
-                if (i === 0) {
-                    firstPageUrl = parsed.blueprintUrl;
-                }
+                if (!response.ok) throw new Error(parsed.error || 'The server returned an error.');
+                finalAnalysis = parsed.analysisResult || {};
+                firstPageUrl = parsed.blueprintUrl || null;
+                setSelectedPages(parsed.selectedPages || []);
+                setTotalPages(parsed.totalPages || 0);
             }
 
-            const finalAnalysis = _mergeAnalysisResults(allAnalysisResults);
             setAnalysisResult(finalAnalysis);
             setUploadedBlueprintUrl(firstPageUrl);
-            setProgressMessage(''); // Clear progress message on success
-
+            setProgressMessage('');
         } catch (err) {
             setError(`Analysis failed: ${err.message}`);
-            setProgressMessage(''); // Clear progress message on failure
+            setProgressMessage('');
         } finally {
             setIsAnalyzing(false);
         }
-        return;
-    }
+    };
     
-    // Original logic for smaller files
-    const getBase64 = (file) => new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = (error) => reject(error);
-    });
-
-    try {
-        setProgressMessage('Analyzing...'); // Add progress for smaller files too
-        const fileData = await getBase64(blueprintFile);
-        const payload = { fileData, userId: user.uid };
-        const response = await fetch(functionUrl, { method: 'POST', mode: 'cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-        const parsed = await response.json();
-        if (!response.ok) throw new Error(parsed.error || 'The server returned an error.');
-        setAnalysisResult(parsed.analysisResult || {});
-        setUploadedBlueprintUrl(parsed.blueprintUrl || null);
-        setSelectedPages(parsed.selectedPages || []);
-        setTotalPages(parsed.totalPages || 0);
-
-    } catch (err) { setError(`Analysis failed: ${err.message}`); } finally { setIsAnalyzing(false); setProgressMessage(''); }
-};
-
     const handleUseInCalculator = () => {
         if (!analysisResult) return;
         const remodelingItems = analysisResult["Remodeling place and size"] || {};
@@ -656,7 +663,7 @@ function BlueprintAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplet
                     <a role="tab" className="tab" onClick={() => onPageChange('calculator')}>Calculator</a>
                     <a role="tab" className="tab tab-active">Blueprint Analyzer</a>
                     <a role="tab" className="tab" onClick={() => onPageChange('voiceAnalyzer')}>Voice Analyzer</a>
-                    </div>
+                </div>
                 <h1 className="title">Blueprint Analyzer</h1>
                 <p>Upload a blueprint (PNG, JPG, or PDF) to automatically extract project details.</p>
                 <div className="form-control w-full mt-4">
