@@ -483,11 +483,9 @@ function RecordsPage({ user, onLogout, onPageChange }) {
 }
 
 // --- Function to merge analysis results from chunks ---
+// --- Function to merge analysis results from chunks ---
 const _mergeAnalysisResults = (results) => {
-    if (!results || results.length === 0) {
-        return {};
-    }
-
+    if (!results || results.length === 0) return {};
     const merged = results[0];
     for (const result of results.slice(1)) {
         for (const [key, value] of Object.entries(result)) {
@@ -512,147 +510,18 @@ const _mergeAnalysisResults = (results) => {
 
 
 // Blueprint Analyzer Page Component
-function BlueprintAnalyzerPage({ user, onLogout, onPageChange }) {
-    const [blueprintFile, setBlueprintFile] = useState(null);
-    const [analysisResult, setAnalysisResult] = useState(null);
-    const [isAnalyzing, setIsAnalyzing] = useState(false);
-    const [error, setError] = useState('');
-    const [progressMessage, setProgressMessage] = useState('');
-    const [uploadedBlueprintUrl, setUploadedBlueprintUrl] = useState(null);
-    const [selectedPages, setSelectedPages] = useState([]);
-    const [totalPages, setTotalPages] = useState(0);
-    const [progressPercent, setProgressPercent] = useState(0);
+function BlueprintAnalyzerPage({
+    user, onLogout, onPageChange,
+    blueprintFile, analysisResult, isAnalyzing, error, progressMessage, progressPercent,
+    handleFileChange, handleAnalyze, handleStopAnalysis, handleUseInCalculator
+}) {
+    // Create a ref to access the hidden file input element
+    const fileInputRef = useRef(null);
 
-    const handleFileChange = (e) => {
-        const file = e.target.files[0];
-        if (file && (file.type === 'image/png' || file.type === 'image/jpeg' || file.type === 'application/pdf')) {
-            setBlueprintFile(file);
-            setError('');
-            setProgressMessage('');
-            setAnalysisResult(null);
-        } else {
-            setBlueprintFile(null);
-            setError('Please select a valid image (PNG, JPG) or PDF file.');
-        }
-    };
-
-    const handleAnalyze = async () => {
-        if (!blueprintFile) {
-            setError('Please select a file.');
-            return;
-        }
-
-        setIsAnalyzing(true);
-        setError('');
-        setProgressMessage('');
-        setAnalysisResult(null);
-        setUploadedBlueprintUrl(null);
-        setSelectedPages([]);
-        setTotalPages(0);
-        setProgressPercent(0);
-
-        const analyzeUrl = 'https://analyze-blueprint-w47bikyqya-uc.a.run.app';
-        const synthesizeUrl = 'https://synthesize-scope-of-work-w47bikyqya-uc.a.run.app';
-        const CHUNK_SIZE = 5;
-        const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-
-        const wasChunked = blueprintFile.type === 'application/pdf' && blueprintFile.size > MAX_FILE_SIZE;
-
-        try {
-            let finalAnalysis;
-            let firstPageUrl;
-
-            if (wasChunked) {
-                const arrayBuffer = await blueprintFile.arrayBuffer();
-                const pdfDoc = await PDFDocument.load(arrayBuffer);
-                const totalPages = pdfDoc.getPageCount();
-                setTotalPages(totalPages);
-                let allAnalysisResults = [];
-
-                for (let i = 0; i < totalPages; i += CHUNK_SIZE) {
-                    const chunkEnd = Math.min(i + CHUNK_SIZE, totalPages);
-                    setProgressMessage(`Analyzing pages ${i + 1}-${chunkEnd} of ${totalPages}...`);
-                    setProgressPercent(Math.round((chunkEnd / totalPages) * 100));
-
-                    const subPdf = await PDFDocument.create();
-                    const copiedPages = await subPdf.copyPages(pdfDoc, Array.from({ length: chunkEnd - i }, (_, k) => i + k));
-                    copiedPages.forEach(page => subPdf.addPage(page));
-                    
-                    const chunkBytes = await subPdf.save();
-                    const chunkBlob = new Blob([chunkBytes], { type: 'application/pdf' });
-
-                    const fileData = await new Promise((resolve, reject) => {
-                        const reader = new FileReader();
-                        reader.readAsDataURL(chunkBlob);
-                        reader.onload = () => resolve(reader.result);
-                        reader.onerror = (error) => reject(error);
-                    });
-
-                    const payload = { fileData, userId: user.uid };
-                    const response = await fetch(analyzeUrl, { method: 'POST', mode: 'cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-                    const parsed = await response.json();
-
-                    if (!response.ok) throw new Error(parsed.error || `Chunk ${i / CHUNK_SIZE + 1} failed.`);
-                    
-                    allAnalysisResults.push(parsed.analysisResult);
-                    if (i === 0) firstPageUrl = parsed.blueprintUrl;
-                }
-
-                finalAnalysis = _mergeAnalysisResults(allAnalysisResults);
-                
-                if (finalAnalysis['Scope of Work']) {
-                    setProgressMessage('Finalizing scope of work...');
-                    const synthResponse = await fetch(synthesizeUrl, {
-                        method: 'POST',
-                        mode: 'cors',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ text: finalAnalysis['Scope of Work'] })
-                    });
-                    const synthResult = await synthResponse.json();
-                    if (!synthResponse.ok) throw new Error(synthResult.error || 'Failed to synthesize scope of work.');
-                    finalAnalysis['Scope of Work'] = synthResult.synthesizedScope;
-                }
-
-            } else {
-                setProgressMessage('Analyzing...');
-                setProgressPercent(50);
-                const fileData = await new Promise((resolve, reject) => {
-                    const reader = new FileReader();
-                    reader.readAsDataURL(blueprintFile);
-                    reader.onload = () => resolve(reader.result);
-                    reader.onerror = (error) => reject(error);
-                });
-                const payload = { fileData, userId: user.uid };
-                const response = await fetch(analyzeUrl, { method: 'POST', mode: 'cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-                const parsed = await response.json();
-                if (!response.ok) throw new Error(parsed.error || 'The server returned an error.');
-                finalAnalysis = parsed.analysisResult || {};
-                firstPageUrl = parsed.blueprintUrl || null;
-                setSelectedPages(parsed.selectedPages || []);
-                setTotalPages(parsed.totalPages || 0);
-            }
-
-            setAnalysisResult(finalAnalysis);
-            setUploadedBlueprintUrl(firstPageUrl);
-            setProgressMessage('');
-        } catch (err) {
-            setError(`Analysis failed: ${err.message}`);
-            setProgressMessage('');
-        } finally {
-            setIsAnalyzing(false);
-        }
-    };
-    
-    const handleUseInCalculator = () => {
-        if (!analysisResult) return;
-        const remodelingItems = analysisResult["Remodeling place and size"] || {};
-        const filteredItems = Object.fromEntries(Object.entries(remodelingItems).filter(([, value]) => value !== null));
-        const dataForCalculator = {
-            projectName: analysisResult["Project Name"] || '', address: analysisResult["Project Address"] || '', clientName: analysisResult["Client Name"] || '',
-            scopeOfWork: analysisResult["Scope of Work"] || '',
-            items: filteredItems, blueprintUrl: uploadedBlueprintUrl, analysisResult: analysisResult
-        };
-        onPageChange('calculator', dataForCalculator);
+    // This function will be called when the custom button is clicked
+    const handleCustomInputClick = () => {
+        // Programmatically click the hidden file input
+        fileInputRef.current.click();
     };
 
     return (
@@ -671,23 +540,54 @@ function BlueprintAnalyzerPage({ user, onLogout, onPageChange }) {
                 <h1 className="title">Blueprint Analyzer</h1>
                 <p>Upload a blueprint (PNG, JPG, or PDF) to automatically extract project details.</p>
                 <div className="form-control w-full mt-4">
-                    <input type="file" onChange={handleFileChange} accept="image/png, image/jpeg, application/pdf" className="file-input file-input-bordered w-full rounded-box" />
+                    {/* The real file input is now hidden */}
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        onChange={handleFileChange}
+                        accept="image/png, image/jpeg, application/pdf"
+                        className="hidden"
+                        disabled={isAnalyzing}
+                    />
+                    
+                    {/* This is the custom-styled replacement that the user sees */}
+                    <div
+                        className={`file-input file-input-bordered w-full rounded-box flex items-center pr-4 ${isAnalyzing ? 'file-input-disabled bg-base-200' : 'cursor-pointer'}`}
+                        onClick={!isAnalyzing ? handleCustomInputClick : undefined}
+                    >
+                        <span className="btn btn-primary no-animation rounded-r-none">
+                            Choose File
+                        </span>
+                        <span className="ml-4 truncate text-base-content/60">
+                            {blueprintFile ? blueprintFile.name : 'No file chosen'}
+                        </span>
+                    </div>
+
                     <button onClick={handleAnalyze} disabled={isAnalyzing || !blueprintFile} className="btn btn-secondary btn-outline mt-4">
-                        {isAnalyzing && <span className="loading loading-spinner"></span>}
                         {isAnalyzing ? 'Analyzing...' : 'Analyze Blueprint'}
                     </button>
                 </div>
-                {error && <div className="alert alert-error mt-4 rounded-box">{error}</div>}
-                {progressMessage && !error && (
-                    <div className="alert alert-info mt-4 rounded-box flex flex-col items-center">
-                        <div>
-                            <span className="loading loading-spinner"></span>
-                            {progressMessage}
-                        </div>
-                        <progress className="progress progress-warning w-56 mt-2" value={progressPercent} max="100"></progress>
+
+                {isAnalyzing && (
+                    <div className="mt-4 space-y-2">
+                         {progressMessage && (
+                            <div className="alert alert-info rounded-box flex flex-col items-center">
+                                <div>
+                                    <span className="loading loading-spinner"></span>
+                                    {progressMessage}
+                                </div>
+                                <progress className="progress progress-warning w-56 mt-2" value={progressPercent} max="100"></progress>
+                            </div>
+                        )}
+                        <button onClick={handleStopAnalysis} className="btn btn-error btn-outline w-full">
+                            Stop Analysis
+                        </button>
                     </div>
                 )}
-                {analysisResult && (
+
+                {error && <div className="alert alert-error mt-4 rounded-box">{error}</div>}
+
+                {!isAnalyzing && analysisResult && (
                     <>
                         <AnalysisResultDisplay analysisResult={analysisResult} />
                         <button onClick={handleUseInCalculator} className="btn btn-primary btn-outline mt-4">Use in Calculator</button>
@@ -697,6 +597,8 @@ function BlueprintAnalyzerPage({ user, onLogout, onPageChange }) {
         </div>
     );
 }
+
+
 
 // Voice Analyzer Page Component
 function VoiceAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplete }) {
@@ -1000,14 +902,23 @@ function AuthPage() {
     );
 }
 
-// Main App Component
+// --- MAIN APP COMPONENT ---
 export default function App() {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState('calculator');
     const [dataForCalculator, setDataForCalculator] = useState(null);
     const [appState, setAppState] = useState('welcome');
-    
+
+    // State and logic for Blueprint Analyzer
+    const [blueprintFile, setBlueprintFile] = useState(null);
+    const [analysisResult, setAnalysisResult] = useState(null);
+    const [isAnalyzing, setIsAnalyzing] = useState(false);
+    const [analysisError, setAnalysisError] = useState('');
+    const [progressMessage, setProgressMessage] = useState('');
+    const [progressPercent, setProgressPercent] = useState(0);
+    const [uploadedBlueprintUrl, setUploadedBlueprintUrl] = useState(null);
+    const abortController = useRef(null); // Changed from analysisCancellation
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -1028,30 +939,187 @@ export default function App() {
         setDataForCalculator(data);
     };
 
+    // --- Handlers for Blueprint Analyzer ---
+    const handleFileChange = (e) => {
+        const file = e.target.files[0];
+        if (file && (file.type === 'image/png' || file.type === 'image/jpeg' || file.type === 'application/pdf')) {
+            setBlueprintFile(file);
+            setAnalysisError('');
+            setProgressMessage('');
+            setAnalysisResult(null);
+        } else {
+            setBlueprintFile(null);
+            setAnalysisError('Please select a valid image (PNG, JPG) or PDF file.');
+        }
+    };
+
+    // UPDATED: This now aborts the fetch request directly.
+    const handleStopAnalysis = () => {
+        if (abortController.current) {
+            abortController.current.abort();
+        }
+    };
+
+    const handleUseInCalculatorFromAnalysis = () => {
+        if (!analysisResult) return;
+        const remodelingItems = analysisResult["Remodeling place and size"] || {};
+        const filteredItems = Object.fromEntries(Object.entries(remodelingItems).filter(([, value]) => value !== null));
+        const data = {
+            projectName: analysisResult["Project Name"] || '', address: analysisResult["Project Address"] || '', clientName: analysisResult["Client Name"] || '',
+            scopeOfWork: analysisResult["Scope of Work"] || '',
+            items: filteredItems, blueprintUrl: uploadedBlueprintUrl, analysisResult: analysisResult
+        };
+        handlePageChange('calculator', data);
+    };
+
+    // UPDATED: This now uses the AbortController signal
+    const handleAnalyze = async () => {
+        if (!blueprintFile || !user) {
+            setAnalysisError('Please select a file first.');
+            return;
+        }
+
+        abortController.current = new AbortController(); // Create a new controller for this run
+        setIsAnalyzing(true);
+        setAnalysisError('');
+        setProgressMessage('Preparing for analysis...');
+        setAnalysisResult(null);
+        setUploadedBlueprintUrl(null);
+        setProgressPercent(0);
+
+        const analyzeUrl = 'https://analyze-blueprint-w47bikyqya-uc.a.run.app';
+        const synthesizeUrl = 'https://synthesize-scope-of-work-w47bikyqya-uc.a.run.app';
+        const CHUNK_SIZE = 5;
+        const MAX_FILE_SIZE = 10 * 1024 * 1024;
+
+        try {
+            const wasChunked = blueprintFile.type === 'application/pdf' && blueprintFile.size > MAX_FILE_SIZE;
+            let finalAnalysis;
+            let firstPageUrl;
+
+            if (wasChunked) {
+                const arrayBuffer = await blueprintFile.arrayBuffer();
+                const pdfDoc = await PDFDocument.load(arrayBuffer);
+                const totalPages = pdfDoc.getPageCount();
+                let allAnalysisResults = [];
+
+                for (let i = 0; i < totalPages; i += CHUNK_SIZE) {
+                    const chunkEnd = Math.min(i + CHUNK_SIZE, totalPages);
+                    setProgressMessage(`Analyzing pages ${i + 1}-${chunkEnd} of ${totalPages}...`);
+                    setProgressPercent(Math.round((chunkEnd / totalPages) * 100));
+
+                    const subPdf = await PDFDocument.create();
+                    const copiedPages = await subPdf.copyPages(pdfDoc, Array.from({ length: chunkEnd - i }, (_, k) => i + k));
+                    copiedPages.forEach(page => subPdf.addPage(page));
+                    
+                    const chunkBytes = await subPdf.save();
+                    const chunkBlob = new Blob([chunkBytes], { type: 'application/pdf' });
+
+                    const fileData = await new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.readAsDataURL(chunkBlob);
+                        reader.onload = () => resolve(reader.result);
+                        reader.onerror = (error) => reject(error);
+                    });
+
+                    const payload = { fileData, userId: user.uid };
+                    const response = await fetch(analyzeUrl, { 
+                        method: 'POST', 
+                        mode: 'cors', 
+                        headers: { 'Content-Type': 'application/json' }, 
+                        body: JSON.stringify(payload), 
+                        signal: abortController.current.signal // Pass the signal
+                    });
+                    const parsed = await response.json();
+
+                    if (!response.ok) throw new Error(parsed.error || `Chunk ${i / CHUNK_SIZE + 1} failed.`);
+                    
+                    allAnalysisResults.push(parsed.analysisResult);
+                    if (i === 0) firstPageUrl = parsed.blueprintUrl;
+                }
+                
+                finalAnalysis = _mergeAnalysisResults(allAnalysisResults);
+                
+                if (finalAnalysis['Scope of Work']) {
+                    setProgressMessage('Finalizing scope of work...');
+                    const synthResponse = await fetch(synthesizeUrl, {
+                        method: 'POST', mode: 'cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: finalAnalysis['Scope of Work'] })
+                    });
+                    const synthResult = await synthResponse.json();
+                    if (!synthResponse.ok) throw new Error(synthResult.error || 'Failed to synthesize scope of work.');
+                    finalAnalysis['Scope of Work'] = synthResult.synthesizedScope;
+                }
+            } else {
+                setProgressMessage('Analyzing...');
+                setProgressPercent(50);
+                const fileData = await new Promise((resolve, reject) => {
+                    const reader = new FileReader(); reader.readAsDataURL(blueprintFile); reader.onload = () => resolve(reader.result); reader.onerror = (error) => reject(error);
+                });
+                const payload = { fileData, userId: user.uid };
+                const response = await fetch(analyzeUrl, { 
+                    method: 'POST', 
+                    mode: 'cors', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify(payload),
+                    signal: abortController.current.signal // Pass the signal
+                });
+                const parsed = await response.json();
+                if (!response.ok) throw new Error(parsed.error || 'The server returned an error.');
+                finalAnalysis = parsed.analysisResult || {};
+                firstPageUrl = parsed.blueprintUrl || null;
+            }
+            
+            setAnalysisResult(finalAnalysis);
+            setUploadedBlueprintUrl(firstPageUrl);
+            setProgressMessage('');
+
+        } catch (err) {
+            // UPDATED: Catch the specific abort error
+            if (err.name === 'AbortError') {
+                setAnalysisError('Analysis stopped by user interaction.');
+            } else {
+                setAnalysisError(err.message);
+            }
+            setProgressMessage('');
+            setProgressPercent(0);
+        } finally {
+            setIsAnalyzing(false);
+        }
+    };
+
     if (appState === 'welcome') {
-      return <WelcomePage 
-                onGetStarted={() => setAppState('app')} 
-                onLearnMore={() => setAppState('learnMore')} 
-             />;
+        return <WelcomePage onGetStarted={() => setAppState('app')} onLearnMore={() => setAppState('learnMore')} />;
     }
 
     if (appState === 'learnMore') {
-      return <LearnMorePage onBack={() => setAppState('welcome')} />;
+        return <LearnMorePage onBack={() => setAppState('welcome')} />;
     }
 
     const renderPage = () => {
-    switch (currentPage) {
-        case 'calculator': return <PriceCalculator user={user} onLogout={handleLogout} onPageChange={handlePageChange} initialData={dataForCalculator} />;
-        case 'records': return <RecordsPage user={user} onLogout={handleLogout} onPageChange={handlePageChange} />;
-        case 'analyzer': return <BlueprintAnalyzerPage user={user} onLogout={handleLogout} onPageChange={handlePageChange} />;
-        case 'voiceAnalyzer': return <VoiceAnalyzerPage user={user} onLogout={handleLogout} onPageChange={handlePageChange} />;
-        default: return <PriceCalculator user={user} onLogout={handleLogout} onPageChange={handlePageChange} initialData={dataForCalculator} />;
-    }
-};
+        switch (currentPage) {
+            case 'calculator': return <PriceCalculator user={user} onLogout={handleLogout} onPageChange={handlePageChange} initialData={dataForCalculator} />;
+            case 'records': return <RecordsPage user={user} onLogout={handleLogout} onPageChange={handlePageChange} />;
+            case 'analyzer': return <BlueprintAnalyzerPage 
+                user={user} 
+                onLogout={handleLogout} 
+                onPageChange={handlePageChange}
+                blueprintFile={blueprintFile}
+                analysisResult={analysisResult}
+                isAnalyzing={isAnalyzing}
+                error={analysisError}
+                progressMessage={progressMessage}
+                progressPercent={progressPercent}
+                handleFileChange={handleFileChange}
+                handleAnalyze={handleAnalyze}
+                handleStopAnalysis={handleStopAnalysis}
+                handleUseInCalculator={handleUseInCalculatorFromAnalysis}
+                />;
+            case 'voiceAnalyzer': return <VoiceAnalyzerPage user={user} onLogout={handleLogout} onPageChange={handlePageChange} />;
+            default: return <PriceCalculator user={user} onLogout={handleLogout} onPageChange={handlePageChange} initialData={dataForCalculator} />;
+        }
+    };
 
     return (
-        <>
-            {user ? renderPage() : <AuthPage />}
-        </>
+        <>{user ? renderPage() : <AuthPage />}</>
     );
 }
