@@ -521,6 +521,7 @@ function BlueprintAnalyzerPage({ user, onLogout, onPageChange }) {
     const [uploadedBlueprintUrl, setUploadedBlueprintUrl] = useState(null);
     const [selectedPages, setSelectedPages] = useState([]);
     const [totalPages, setTotalPages] = useState(0);
+    const [progressPercent, setProgressPercent] = useState(0);
 
     const handleFileChange = (e) => {
         const file = e.target.files[0];
@@ -548,6 +549,7 @@ function BlueprintAnalyzerPage({ user, onLogout, onPageChange }) {
         setUploadedBlueprintUrl(null);
         setSelectedPages([]);
         setTotalPages(0);
+        setProgressPercent(0);
 
         const analyzeUrl = 'https://analyze-blueprint-w47bikyqya-uc.a.run.app';
         const synthesizeUrl = 'https://synthesize-scope-of-work-w47bikyqya-uc.a.run.app';
@@ -570,6 +572,7 @@ function BlueprintAnalyzerPage({ user, onLogout, onPageChange }) {
                 for (let i = 0; i < totalPages; i += CHUNK_SIZE) {
                     const chunkEnd = Math.min(i + CHUNK_SIZE, totalPages);
                     setProgressMessage(`Analyzing pages ${i + 1}-${chunkEnd} of ${totalPages}...`);
+                    setProgressPercent(Math.round((chunkEnd / totalPages) * 100));
 
                     const subPdf = await PDFDocument.create();
                     const copiedPages = await subPdf.copyPages(pdfDoc, Array.from({ length: chunkEnd - i }, (_, k) => i + k));
@@ -612,6 +615,7 @@ function BlueprintAnalyzerPage({ user, onLogout, onPageChange }) {
 
             } else {
                 setProgressMessage('Analyzing...');
+                setProgressPercent(50);
                 const fileData = await new Promise((resolve, reject) => {
                     const reader = new FileReader();
                     reader.readAsDataURL(blueprintFile);
@@ -675,9 +679,12 @@ function BlueprintAnalyzerPage({ user, onLogout, onPageChange }) {
                 </div>
                 {error && <div className="alert alert-error mt-4 rounded-box">{error}</div>}
                 {progressMessage && !error && (
-                    <div className="alert alert-info mt-4 rounded-box">
-                        <span className="loading loading-spinner"></span>
-                        {progressMessage}
+                    <div className="alert alert-info mt-4 rounded-box flex flex-col items-center">
+                        <div>
+                            <span className="loading loading-spinner"></span>
+                            {progressMessage}
+                        </div>
+                        <progress className="progress progress-warning w-56 mt-2" value={progressPercent} max="100"></progress>
                     </div>
                 )}
                 {analysisResult && (
