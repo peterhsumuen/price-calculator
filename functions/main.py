@@ -108,12 +108,24 @@ def _merge_analysis_results(results):
         return {}
 
     merged = results[0]
-
-    # Iterate over subsequent results and only append the "Scope of Work"
+    
+    # Ensure the initial "Scope of Work" is a string to begin with.
+    # The .get() method safely handles cases where the key might be missing.
+    scope_text = merged.get("Scope of Work", "")
+    if isinstance(scope_text, dict):
+        # Convert dictionary to a string representation if needed
+        scope_text = json.dumps(scope_text, indent=2) 
+    
+    # Iterate over subsequent results to append their scopes
     for result in results[1:]:
-        if "Scope of Work" in result and result["Scope of Work"]:
-            merged["Scope of Work"] += "\n\n" + result["Scope of Work"]
+        next_scope_text = result.get("Scope of Work", "")
+        if next_scope_text:
+            # Also ensure the next scope is a string before appending
+            if isinstance(next_scope_text, dict):
+                next_scope_text = json.dumps(next_scope_text, indent=2)
+            scope_text += "\n\n" + next_scope_text
 
+    merged["Scope of Work"] = scope_text
     return merged
 
 # --- Cloud Functions ---
