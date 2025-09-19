@@ -38,7 +38,7 @@ def _cors_headers_for(origin: str | None):
     if _is_allowed_origin(origin):
         headers["Access-Control-Allow-Origin"] = origin
     else:
-        headers["Access-Control-Allow-Origin"] = "*"  # More permissive for simplicity (no credentials)
+        headers["Access-Control-Allow-Origin"] = "*"  
     return headers
 
 def _cors_preflight_headers(origin: str | None):
@@ -50,9 +50,6 @@ def _cors_preflight_headers(origin: str | None):
     })
     return h
 
-# --- Lazy-Initialized Clients ---
-# We declare clients globally but only initialize them on the first function call.
-# This prevents deployment timeouts and is the recommended best practice.
 PROJECT_ID = (
     os.environ.get("GCLOUD_PROJECT")
     or os.environ.get("GCP_PROJECT")
@@ -106,25 +103,17 @@ def _decode_data_uri(data_uri):
 def _merge_analysis_results(results):
     """
     Merges a list of JSON analysis results from Gemini into a single result.
-    This is a simple merging strategy. You may need to make it more sophisticated
-    based on your specific needs.
     """
     if not results:
         return {}
 
     merged = results[0]
+
+    # Iterate over subsequent results and only append the "Scope of Work"
     for result in results[1:]:
-        for key, value in result.items():
-            if key == "Scope of Work":
-                merged[key] += "\n\n" + value
-            elif isinstance(value, dict) and isinstance(merged.get(key), dict):
-                for sub_key, sub_value in value.items():
-                    if isinstance(sub_value, (int, float)) and isinstance(merged[key].get(sub_key), (int, float)):
-                        merged[key][sub_key] = (merged[key].get(sub_key, 0) or 0) + (sub_value or 0)
-                    elif sub_value is not None:
-                        merged[key][sub_key] = sub_value
-            elif value is not None:
-                merged[key] = value
+        if "Scope of Work" in result and result["Scope of Work"]:
+            merged["Scope of Work"] += "\n\n" + result["Scope of Work"]
+
     return merged
 
 # --- Cloud Functions ---
@@ -142,8 +131,8 @@ def analyze_blueprint(req: https_fn.Request) -> https_fn.Response:
     try:
         _initialize_clients()
 
-        # --- NEW: Configuration for chunking ---
-        CHUNK_SIZE = 5  # Process 5 pages at a time. Adjust as needed.
+        
+        CHUNK_SIZE = 5 
         TEXT_THRESHOLD = 1500
         
         prompt = """
@@ -237,7 +226,6 @@ def analyze_blueprint(req: https_fn.Request) -> https_fn.Response:
             with fitz.open(stream=raw_bytes, filetype="pdf") as doc:
                 page_count = doc.page_count
                 
-                # --- MODIFIED: Process in chunks ---
                 for i in range(0, page_count, CHUNK_SIZE):
                     chunk_pages = list(range(i, min(i + CHUNK_SIZE, page_count)))
                     content_for_gemini = [prompt]
@@ -256,13 +244,13 @@ def analyze_blueprint(req: https_fn.Request) -> https_fn.Response:
                             image_bytes = pix.tobytes("png")
                             content_for_gemini.append(Part.from_data(data=image_bytes, mime_type="image/png"))
                     
-                    if len(content_for_gemini) > 1: # Only make a request if there are pages in the chunk
+                    if len(content_for_gemini) > 1: 
                         response = gemini_model.generate_content(content_for_gemini)
                         raw_text = response.text.strip().replace("```json", "").replace("```", "")
                         analysis = json.loads(raw_text)
                         all_analysis_results.append(analysis)
 
-        else: # Handle single image files as before
+        else:
             page_count = 1
             selected_pages_indices.append(0)
             first_page_bytes = raw_bytes
@@ -276,7 +264,6 @@ def analyze_blueprint(req: https_fn.Request) -> https_fn.Response:
         if not first_page_bytes:
             raise ValueError("No image data could be processed for upload.")
         
-        # --- NEW: Merge the results from all chunks ---
         final_analysis = _merge_analysis_results(all_analysis_results)
 
         bucket_name = _get_bucket_name()
@@ -375,7 +362,6 @@ def analyze_voice_recording(req: https_fn.Request) -> https_fn.Response:
                 status=400, mimetype="application/json", headers=_cors_headers_for(origin)
             )
         
-        # Get the sample rate from the request
         sample_rate = data["sampleRate"]
 
         # Decode the data URI and capture the original mime
@@ -387,9 +373,6 @@ def analyze_voice_recording(req: https_fn.Request) -> https_fn.Response:
             )
 
         # Inspect the incoming mime; many browsers give variants like:
-        # - "audio/webm;codecs=opus"
-        # - "audio/ogg;codecs=opus"
-        # - "audio/mp4" or "audio/m4a" (AAC)  <-- not supported by v2 decoders
         mime_lower = (mime_type or "").lower()
         print(f"[analyze_voice_recording] Incoming mime: {mime_lower}, bytes={len(audio_content)}")
 
@@ -414,7 +397,6 @@ def analyze_voice_recording(req: https_fn.Request) -> https_fn.Response:
                 status=400, mimetype="application/json", headers=_cors_headers_for(origin)
             )
         else:
-            # Unknown container: we can still try WEBM_OPUS as a guess, but better to fail clearly.
             return https_fn.Response(
                 json.dumps({
                     "error": f"Unsupported audio container: {mime_type}",
@@ -445,11 +427,10 @@ def analyze_voice_recording(req: https_fn.Request) -> https_fn.Response:
 
         # Helper to run BatchRecognize with a given channel count (2 -> 1 fallback)
         def _run_batch_recognize(channel_count: int):
-            # Most Opus recordings are 48kHz; if your recorder is 44100, change this.
             explicit_config = speech_v2.ExplicitDecodingConfig(
                 encoding=decoding_encoding,
-                sample_rate_hertz=sample_rate,           # Opus typically 48000; adjust if you know yours is different
-                audio_channel_count=channel_count   # try 2 first, then 1
+                sample_rate_hertz=sample_rate,          
+                audio_channel_count=channel_count   
             )
 
             features = speech_v2.RecognitionFeatures(
@@ -493,8 +474,6 @@ def analyze_voice_recording(req: https_fn.Request) -> https_fn.Response:
 
         # Extract transcript
         if not getattr(file_result, "transcript", None) or not file_result.transcript.results:
-            # If we got here, decoding might have succeeded but the audio was near-silence or too short
-            # (or sample rate didn't actually match). Surface a clearer error for debugging.
             raise ValueError(
                 "Transcription completed but returned no text. "
                 "Possible causes: near-silence/very short audio, wrong sample_rate_hertz, or a codec/container mismatch."

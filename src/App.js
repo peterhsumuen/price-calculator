@@ -33,7 +33,7 @@ import {
 } from 'firebase/firestore';
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-  'pdfjs-dist/build/pdf.worker.min.mjs',   // <-- .mjs (or 'pdf.worker.mjs')
+  'pdfjs-dist/build/pdf.worker.min.mjs',   
   import.meta.url,
 ).toString();
 
@@ -227,7 +227,7 @@ function PriceCalculator({ user, onLogout, onPageChange, initialData }) {
 
         try {
             const payload = {
-                items: items.filter(item => item.type && item.sf), // Send only valid items
+                items: items.filter(item => item.type && item.sf), 
             };
 
             const response = await fetch(functionUrl, {
@@ -260,7 +260,7 @@ function PriceCalculator({ user, onLogout, onPageChange, initialData }) {
         setSaveStatus("Saving...");
         const projectData = {
             projectName, address, clientName, scopeOfWork: scopeOfWorkText, finalPrice: totalPrice,
-            items: items.filter(item => item.type).map(({ id, ...rest }) => rest), // Filter out empty items
+            items: items.filter(item => item.type).map(({ id, ...rest }) => rest), 
             blueprintUrl,
             analysisResult: analysisData,
         };
@@ -483,28 +483,17 @@ function RecordsPage({ user, onLogout, onPageChange }) {
 }
 
 // --- Function to merge analysis results from chunks ---
-// --- Function to merge analysis results from chunks ---
 const _mergeAnalysisResults = (results) => {
     if (!results || results.length === 0) return {};
+
     const merged = results[0];
+
     for (const result of results.slice(1)) {
-        for (const [key, value] of Object.entries(result)) {
-            if (key === "Scope of Work" && value) {
-                merged[key] = (merged[key] || "") + "\n\n" + value;
-            } else if (key === "Remodeling place and size" && typeof value === 'object' && value !== null) {
-                if (!merged[key]) merged[key] = {};
-                for (const [subKey, subValue] of Object.entries(value)) {
-                    if (typeof subValue === 'number') {
-                        merged[key][subKey] = (merged[key][subKey] || 0) + subValue;
-                    } else if (subValue !== null && merged[key][subKey] === null) {
-                        merged[key][subKey] = subValue;
-                    }
-                }
-            } else if (value !== null && (merged[key] === null || merged[key] === undefined || merged[key] === 'N/A')) {
-                 merged[key] = value;
-            }
+        if (result["Scope of Work"]) {
+            merged["Scope of Work"] = (merged["Scope of Work"] || "") + "\n\n" + result["Scope of Work"];
         }
     }
+
     return merged;
 };
 
@@ -918,7 +907,7 @@ export default function App() {
     const [progressMessage, setProgressMessage] = useState('');
     const [progressPercent, setProgressPercent] = useState(0);
     const [uploadedBlueprintUrl, setUploadedBlueprintUrl] = useState(null);
-    const abortController = useRef(null); // Changed from analysisCancellation
+    const abortController = useRef(null); 
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -953,7 +942,6 @@ export default function App() {
         }
     };
 
-    // UPDATED: This now aborts the fetch request directly.
     const handleStopAnalysis = () => {
         if (abortController.current) {
             abortController.current.abort();
@@ -972,14 +960,13 @@ export default function App() {
         handlePageChange('calculator', data);
     };
 
-    // UPDATED: This now uses the AbortController signal
     const handleAnalyze = async () => {
         if (!blueprintFile || !user) {
             setAnalysisError('Please select a file first.');
             return;
         }
 
-        abortController.current = new AbortController(); // Create a new controller for this run
+        abortController.current = new AbortController(); 
         setIsAnalyzing(true);
         setAnalysisError('');
         setProgressMessage('Preparing for analysis...');
@@ -1051,7 +1038,7 @@ export default function App() {
                 }
             } else {
                 setProgressMessage('Analyzing...');
-                setProgressPercent(50);
+                setProgressPercent(97);
                 const fileData = await new Promise((resolve, reject) => {
                     const reader = new FileReader(); reader.readAsDataURL(blueprintFile); reader.onload = () => resolve(reader.result); reader.onerror = (error) => reject(error);
                 });
@@ -1061,7 +1048,7 @@ export default function App() {
                     mode: 'cors', 
                     headers: { 'Content-Type': 'application/json' }, 
                     body: JSON.stringify(payload),
-                    signal: abortController.current.signal // Pass the signal
+                    signal: abortController.current.signal 
                 });
                 const parsed = await response.json();
                 if (!response.ok) throw new Error(parsed.error || 'The server returned an error.');
@@ -1074,7 +1061,6 @@ export default function App() {
             setProgressMessage('');
 
         } catch (err) {
-            // UPDATED: Catch the specific abort error
             if (err.name === 'AbortError') {
                 setAnalysisError('Analysis stopped by user interaction.');
             } else {
