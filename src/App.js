@@ -406,7 +406,7 @@ function PriceCalculator({
 function RecordsPage({ user, onLogout, onPageChange }) {
     const [projects, setProjects] = useState([]);
     const [expandedRow, setExpandedRow] = useState(null);
-    const projectToDelete = useRef(null);
+    const [projectToDelete, setProjectToDelete] = useState(null);
     const modalRef = useRef(null);
 
     useEffect(() => {
@@ -418,24 +418,33 @@ function RecordsPage({ user, onLogout, onPageChange }) {
         return () => unsubscribe();
     }, [user]);
 
+    useEffect(() => {
+        if (projectToDelete) {
+            modalRef.current.showModal();
+        }
+    }, [projectToDelete]);
+
     const handleDeleteClick = (project) => {
-        projectToDelete.current = project;
-        modalRef.current.showModal();
+        setProjectToDelete(project);
     };
 
     const confirmDelete = async () => {
-        if (!projectToDelete.current) return;
+        if (!projectToDelete) return;
         try {
-            await deleteDoc(doc(db, 'projects', projectToDelete.current.id));
+            await deleteDoc(doc(db, 'projects', projectToDelete.id));
         } catch (error) { console.error("Error deleting project:", error); }
     };
 
+    const handleCloseModal = () => {
+        setProjectToDelete(null);
+    }
+
     return (
         <div className="app-container">
-            <dialog id="delete_modal" className="modal" ref={modalRef}>
+            <dialog id="delete_modal" className="modal" ref={modalRef} onClose={handleCloseModal}>
                 <div className="modal-box rounded-box">
                     <h3 className="font-bold text-lg">Are you sure?</h3>
-                    <p className="py-4">This will permanently delete the project "{projectToDelete.current?.projectName}".</p>
+                    <p className="py-4">This will permanently delete the project "{projectToDelete?.projectName}".</p>
                     <div className="modal-action">
                         <form method="dialog">
                             <button className="btn btn-outline mr-2">No</button>
