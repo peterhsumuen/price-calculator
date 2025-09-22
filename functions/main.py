@@ -206,7 +206,7 @@ def analyze_blueprint(req: https_fn.Request) -> https_fn.Response:
             - `Type of Construction`: **Find the construction classification. Look for labels like "TYPE OF CONSTRUCTION" or "CONSTRUCTION TYPE".**
             - `Occupancy Group`: **Find the occupancy classification code. Look for labels like "OCCUPANCY GROUP", "OCCUPANCY", or "GROUP".**
 
-        Your final output must be ONLY a single, valid JSON object. Do not add any other text or explanations.
+        Your final output must formatted as a string with markdown headings and bullet points, while the rest of the data remains in a JSON structure.
 
         ```json
         {
@@ -608,7 +608,7 @@ def analyze_voice_recording(req: https_fn.Request) -> https_fn.Response:
             - `Type of Construction`: **Find the construction classification. Look for labels like "TYPE OF CONSTRUCTION" or "CONSTRUCTION TYPE".**
             - `Occupancy Group`: **Find the occupancy classification code. Look for labels like "OCCUPANCY GROUP", "OCCUPANCY", or "GROUP".**
 
-        Your final output must be ONLY a single, valid JSON object. Do not add any other text or explanations.
+        Your final output must formatted as a string with markdown headings and bullet points, while the rest of the data remains in a JSON structure.
 
         **JSON Output format:**
         {{
