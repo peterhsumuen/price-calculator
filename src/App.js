@@ -147,17 +147,29 @@ function AnalysisResultDisplay({ analysisResult }) {
 
 
 // Price Calculator Component
-function PriceCalculator({ user, onLogout, onPageChange, initialData }) {
-    const [items, setItems] = useState([{ id: uuidv4(), type: '', sf: '' }]);
+function PriceCalculator({
+    user,
+    onLogout,
+    onPageChange,
+    items,
+    setItems,
+    projectName,
+    setProjectName,
+    address,
+    setAddress,
+    clientName,
+    setClientName,
+    scopeOfWorkText,
+    setScopeOfWorkText,
+    blueprintUrl,
+    analysisData,
+    editingProjectId,
+    setEditingProjectId,
+    onClear,
+    initialData
+}) {
     const [totalPrice, setTotalPrice] = useState(0);
-    const [projectName, setProjectName] = useState('');
-    const [address, setAddress] = useState('');
-    const [clientName, setClientName] = useState('');
-    const [scopeOfWorkText, setScopeOfWorkText] = useState('');
     const [saveStatus, setSaveStatus] = useState('');
-    const [blueprintUrl, setBlueprintUrl] = useState(null);
-    const [analysisData, setAnalysisData] = useState(null);
-    const [editingProjectId, setEditingProjectId] = useState(null);
     const [isGenerating, setIsGenerating] = useState(false);
     const [generationError, setGenerationError] = useState('');
 
@@ -167,8 +179,6 @@ function PriceCalculator({ user, onLogout, onPageChange, initialData }) {
             setAddress(initialData.address || '');
             setClientName(initialData.clientName || '');
             setScopeOfWorkText(initialData.scopeOfWork || '');
-            setBlueprintUrl(initialData.blueprintUrl || null);
-            setAnalysisData(initialData.analysisResult || null);
             setEditingProjectId(initialData.id || null);
 
             let itemsToSet;
@@ -185,17 +195,9 @@ function PriceCalculator({ user, onLogout, onPageChange, initialData }) {
             }
 
             setItems(itemsToSet && itemsToSet.length > 0 ? itemsToSet : [{ id: uuidv4(), type: '', sf: '' }]);
-        } else {
-            setProjectName('');
-            setAddress('');
-            setClientName('');
-            setScopeOfWorkText('');
-            setItems([{ id: uuidv4(), type: '', sf: '' }]);
-            setBlueprintUrl(null);
-            setAnalysisData(null);
-            setEditingProjectId(null);
         }
-    }, [initialData]);
+    }, [initialData, setProjectName, setAddress, setClientName, setScopeOfWorkText, setEditingProjectId, setItems]);
+
 
     useEffect(() => {
         let total = 0;
@@ -223,11 +225,11 @@ function PriceCalculator({ user, onLogout, onPageChange, initialData }) {
     const handleGenerateScopeOfWork = async () => {
         setIsGenerating(true);
         setGenerationError('');
-        const functionUrl = 'https://generate-scope-of-work-w47bikyqya-uc.a.run.app'; 
+        const functionUrl = 'https://generate-scope-of-work-w47bikyqya-uc.a.run.app';
 
         try {
             const payload = {
-                items: items.filter(item => item.type && item.sf), 
+                items: items.filter(item => item.type && item.sf),
             };
 
             const response = await fetch(functionUrl, {
@@ -260,7 +262,7 @@ function PriceCalculator({ user, onLogout, onPageChange, initialData }) {
         setSaveStatus("Saving...");
         const projectData = {
             projectName, address, clientName, scopeOfWork: scopeOfWorkText, finalPrice: totalPrice,
-            items: items.filter(item => item.type).map(({ id, ...rest }) => rest), 
+            items: items.filter(item => item.type).map(({ id, ...rest }) => rest),
             blueprintUrl,
             analysisResult: analysisData,
         };
@@ -338,7 +340,7 @@ function PriceCalculator({ user, onLogout, onPageChange, initialData }) {
                     </div>))}
                 </div>
                 <button onClick={handleAddItem} className="btn btn-secondary btn-outline w-full mt-4">+ Add Item</button>
-                
+
                 {/* Smart Button - Only shows if not loading data from analyzers */}
                 {!initialData?.scopeOfWork && (
                     <>
@@ -360,8 +362,9 @@ function PriceCalculator({ user, onLogout, onPageChange, initialData }) {
                 <div className="text-right text-3xl font-bold mt-6 text-success">
                     Total Price: ${totalPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
-                <div className="text-right mt-4">
-                    {saveStatus && <p className="text-sm text-info mb-2">{saveStatus}</p>}
+                <div className="flex justify-end mt-4 space-x-2">
+                    {saveStatus && <p className="text-sm text-info self-center mb-2">{saveStatus}</p>}
+                    <button onClick={onClear} className="btn btn-error btn-outline">Clear Form</button>
                     <button onClick={saveProject} className="btn btn-primary btn-outline">{editingProjectId ? 'Update Project' : 'Save Project'}</button>
                 </div>
             </div>
@@ -899,7 +902,18 @@ export default function App() {
     const [dataForCalculator, setDataForCalculator] = useState(null);
     const [appState, setAppState] = useState('welcome');
 
-    // State and logic for Blueprint Analyzer
+    // --- State for Calculator Page (Lifted State) ---
+    const [calculatorItems, setCalculatorItems] = useState([{ id: uuidv4(), type: '', sf: '' }]);
+    const [calculatorProjectName, setCalculatorProjectName] = useState('');
+    const [calculatorAddress, setCalculatorAddress] = useState('');
+    const [calculatorClientName, setCalculatorClientName] = useState('');
+    const [calculatorScopeOfWorkText, setCalculatorScopeOfWorkText] = useState('');
+    const [editingProjectId, setEditingProjectId] = useState(null);
+    const [calculatorBlueprintUrl, setCalculatorBlueprintUrl] = useState(null);
+    const [calculatorAnalysisData, setCalculatorAnalysisData] = useState(null);
+
+
+    // --- State and logic for Blueprint Analyzer ---
     const [blueprintFile, setBlueprintFile] = useState(null);
     const [analysisResult, setAnalysisResult] = useState(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -907,7 +921,7 @@ export default function App() {
     const [progressMessage, setProgressMessage] = useState('');
     const [progressPercent, setProgressPercent] = useState(0);
     const [uploadedBlueprintUrl, setUploadedBlueprintUrl] = useState(null);
-    const abortController = useRef(null); 
+    const abortController = useRef(null);
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -928,37 +942,38 @@ export default function App() {
         setDataForCalculator(data);
     };
 
-    // --- Handlers for Blueprint Analyzer ---
-    const handleFileChange = (e) => {
-        const file = e.target.files[0];
-        if (file && (file.type === 'image/png' || file.type === 'image/jpeg' || file.type === 'application/pdf')) {
-            setBlueprintFile(file);
-            setAnalysisError('');
-            setProgressMessage('');
-            setAnalysisResult(null);
-        } else {
-            setBlueprintFile(null);
-            setAnalysisError('Please select a valid image (PNG, JPG) or PDF file.');
-        }
-    };
-
-    const handleStopAnalysis = () => {
-        if (abortController.current) {
-            abortController.current.abort();
-        }
+    const handleClearCalculator = () => {
+        setCalculatorItems([{ id: uuidv4(), type: '', sf: '' }]);
+        setCalculatorProjectName('');
+        setCalculatorAddress('');
+        setCalculatorClientName('');
+        setCalculatorScopeOfWorkText('');
+        setEditingProjectId(null);
+        setCalculatorBlueprintUrl(null);
+        setCalculatorAnalysisData(null);
+        setDataForCalculator(null);
     };
 
     const handleUseInCalculatorFromAnalysis = () => {
         if (!analysisResult) return;
+
+        setCalculatorBlueprintUrl(uploadedBlueprintUrl);
+        setCalculatorAnalysisData(analysisResult);
+
         const remodelingItems = analysisResult["Remodeling place and size"] || {};
         const filteredItems = Object.fromEntries(Object.entries(remodelingItems).filter(([, value]) => value !== null));
         const data = {
-            projectName: analysisResult["Project Name"] || '', address: analysisResult["Project Address"] || '', clientName: analysisResult["Client Name"] || '',
+            projectName: analysisResult["Project Name"] || '',
+            address: analysisResult["Project Address"] || '',
+            clientName: analysisResult["Client Name"] || '',
             scopeOfWork: analysisResult["Scope of Work"] || '',
-            items: filteredItems, blueprintUrl: uploadedBlueprintUrl, analysisResult: analysisResult
+            items: filteredItems,
+            blueprintUrl: uploadedBlueprintUrl,
+            analysisResult: analysisResult
         };
         handlePageChange('calculator', data);
     };
+
 
     const handleAnalyze = async () => {
         if (!blueprintFile || !user) {
@@ -966,7 +981,7 @@ export default function App() {
             return;
         }
 
-        abortController.current = new AbortController(); 
+        abortController.current = new AbortController();
         setIsAnalyzing(true);
         setAnalysisError('');
         setProgressMessage('Preparing for analysis...');
@@ -998,7 +1013,7 @@ export default function App() {
                     const subPdf = await PDFDocument.create();
                     const copiedPages = await subPdf.copyPages(pdfDoc, Array.from({ length: chunkEnd - i }, (_, k) => i + k));
                     copiedPages.forEach(page => subPdf.addPage(page));
-                    
+
                     const chunkBytes = await subPdf.save();
                     const chunkBlob = new Blob([chunkBytes], { type: 'application/pdf' });
 
@@ -1010,23 +1025,23 @@ export default function App() {
                     });
 
                     const payload = { fileData, userId: user.uid };
-                    const response = await fetch(analyzeUrl, { 
-                        method: 'POST', 
-                        mode: 'cors', 
-                        headers: { 'Content-Type': 'application/json' }, 
-                        body: JSON.stringify(payload), 
-                        signal: abortController.current.signal // Pass the signal
+                    const response = await fetch(analyzeUrl, {
+                        method: 'POST',
+                        mode: 'cors',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload),
+                        signal: abortController.current.signal
                     });
                     const parsed = await response.json();
 
                     if (!response.ok) throw new Error(parsed.error || `Chunk ${i / CHUNK_SIZE + 1} failed.`);
-                    
+
                     allAnalysisResults.push(parsed.analysisResult);
                     if (i === 0) firstPageUrl = parsed.blueprintUrl;
                 }
-                
+
                 finalAnalysis = _mergeAnalysisResults(allAnalysisResults);
-                
+
                 if (finalAnalysis['Scope of Work']) {
                     setProgressMessage('Finalizing scope of work...');
                     const synthResponse = await fetch(synthesizeUrl, {
@@ -1043,19 +1058,19 @@ export default function App() {
                     const reader = new FileReader(); reader.readAsDataURL(blueprintFile); reader.onload = () => resolve(reader.result); reader.onerror = (error) => reject(error);
                 });
                 const payload = { fileData, userId: user.uid };
-                const response = await fetch(analyzeUrl, { 
-                    method: 'POST', 
-                    mode: 'cors', 
-                    headers: { 'Content-Type': 'application/json' }, 
+                const response = await fetch(analyzeUrl, {
+                    method: 'POST',
+                    mode: 'cors',
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload),
-                    signal: abortController.current.signal 
+                    signal: abortController.current.signal
                 });
                 const parsed = await response.json();
                 if (!response.ok) throw new Error(parsed.error || 'The server returned an error.');
                 finalAnalysis = parsed.analysisResult || {};
                 firstPageUrl = parsed.blueprintUrl || null;
             }
-            
+
             setAnalysisResult(finalAnalysis);
             setUploadedBlueprintUrl(firstPageUrl);
             setProgressMessage('');
@@ -1073,6 +1088,26 @@ export default function App() {
         }
     };
 
+    const handleFileChange = (e) => {
+        const file = e.target.files[0];
+        if (file && (file.type === 'image/png' || file.type === 'image/jpeg' || file.type === 'application/pdf')) {
+            setBlueprintFile(file);
+            setAnalysisError('');
+            setProgressMessage('');
+            setAnalysisResult(null);
+        } else {
+            setBlueprintFile(null);
+            setAnalysisError('Please select a valid image (PNG, JPG) or PDF file.');
+        }
+    };
+
+    const handleStopAnalysis = () => {
+        if (abortController.current) {
+            abortController.current.abort();
+        }
+    };
+
+
     if (appState === 'welcome') {
         return <WelcomePage onGetStarted={() => setAppState('app')} onLearnMore={() => setAppState('learnMore')} />;
     }
@@ -1083,25 +1118,70 @@ export default function App() {
 
     const renderPage = () => {
         switch (currentPage) {
-            case 'calculator': return <PriceCalculator user={user} onLogout={handleLogout} onPageChange={handlePageChange} initialData={dataForCalculator} />;
-            case 'records': return <RecordsPage user={user} onLogout={handleLogout} onPageChange={handlePageChange} />;
-            case 'analyzer': return <BlueprintAnalyzerPage 
-                user={user} 
-                onLogout={handleLogout} 
-                onPageChange={handlePageChange}
-                blueprintFile={blueprintFile}
-                analysisResult={analysisResult}
-                isAnalyzing={isAnalyzing}
-                error={analysisError}
-                progressMessage={progressMessage}
-                progressPercent={progressPercent}
-                handleFileChange={handleFileChange}
-                handleAnalyze={handleAnalyze}
-                handleStopAnalysis={handleStopAnalysis}
-                handleUseInCalculator={handleUseInCalculatorFromAnalysis}
+            case 'calculator':
+                return <PriceCalculator
+                    user={user}
+                    onLogout={handleLogout}
+                    onPageChange={handlePageChange}
+                    items={calculatorItems}
+                    setItems={setCalculatorItems}
+                    projectName={calculatorProjectName}
+                    setProjectName={setCalculatorProjectName}
+                    address={calculatorAddress}
+                    setAddress={setCalculatorAddress}
+                    clientName={calculatorClientName}
+                    setClientName={setCalculatorClientName}
+                    scopeOfWorkText={calculatorScopeOfWorkText}
+                    setScopeOfWorkText={setCalculatorScopeOfWorkText}
+                    editingProjectId={editingProjectId}
+                    setEditingProjectId={setEditingProjectId}
+                    blueprintUrl={calculatorBlueprintUrl}
+                    analysisData={calculatorAnalysisData}
+                    onClear={handleClearCalculator}
+                    initialData={dataForCalculator}
                 />;
-            case 'voiceAnalyzer': return <VoiceAnalyzerPage user={user} onLogout={handleLogout} onPageChange={handlePageChange} />;
-            default: return <PriceCalculator user={user} onLogout={handleLogout} onPageChange={handlePageChange} initialData={dataForCalculator} />;
+            case 'records':
+                return <RecordsPage user={user} onLogout={handleLogout} onPageChange={handlePageChange} />;
+            case 'analyzer':
+                return <BlueprintAnalyzerPage
+                    user={user}
+                    onLogout={handleLogout}
+                    onPageChange={handlePageChange}
+                    blueprintFile={blueprintFile}
+                    analysisResult={analysisResult}
+                    isAnalyzing={isAnalyzing}
+                    error={analysisError}
+                    progressMessage={progressMessage}
+                    progressPercent={progressPercent}
+                    handleFileChange={handleFileChange}
+                    handleAnalyze={handleAnalyze}
+                    handleStopAnalysis={handleStopAnalysis}
+                    handleUseInCalculator={handleUseInCalculatorFromAnalysis}
+                />;
+            case 'voiceAnalyzer':
+                return <VoiceAnalyzerPage user={user} onLogout={handleLogout} onPageChange={handlePageChange} />;
+            default:
+                return <PriceCalculator
+                    user={user}
+                    onLogout={handleLogout}
+                    onPageChange={handlePageChange}
+                    items={calculatorItems}
+                    setItems={setCalculatorItems}
+                    projectName={calculatorProjectName}
+                    setProjectName={setCalculatorProjectName}
+                    address={calculatorAddress}
+                    setAddress={setCalculatorAddress}
+                    clientName={calculatorClientName}
+                    setClientName={setCalculatorClientName}
+                    scopeOfWorkText={calculatorScopeOfWorkText}
+                    setScopeOfWorkText={setCalculatorScopeOfWorkText}
+                    editingProjectId={editingProjectId}
+                    setEditingProjectId={setEditingProjectId}
+                    blueprintUrl={calculatorBlueprintUrl}
+                    analysisData={calculatorAnalysisData}
+                    onClear={handleClearCalculator}
+                    initialData={dataForCalculator}
+                />;
         }
     };
 
