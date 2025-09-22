@@ -173,6 +173,16 @@ function PriceCalculator({
     const [isGenerating, setIsGenerating] = useState(false);
     const [generationError, setGenerationError] = useState('');
 
+    // Condition to check if there is any data in the form
+    const isFormDirty =
+        projectName ||
+        address ||
+        clientName ||
+        scopeOfWorkText ||
+        items.length > 1 ||
+        (items.length === 1 && (items[0].type || items[0].sf));
+
+
     useEffect(() => {
         if (initialData) {
             setProjectName(initialData.projectName || '');
@@ -364,7 +374,7 @@ function PriceCalculator({
                 </div>
                 <div className="flex justify-end mt-4 space-x-2">
                     {saveStatus && <p className="text-sm text-info self-center mb-2">{saveStatus}</p>}
-                    <button onClick={onClear} className="btn btn-error btn-outline">Clear Form</button>
+                    {isFormDirty && <button onClick={onClear} className="btn btn-error btn-outline">Clear Form</button>}
                     <button onClick={saveProject} className="btn btn-primary btn-outline">{editingProjectId ? 'Update Project' : 'Save Project'}</button>
                 </div>
             </div>
