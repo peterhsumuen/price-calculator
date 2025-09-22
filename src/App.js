@@ -180,6 +180,9 @@ function PriceCalculator({
         scopeOfWorkText ||
         items.length > 1 ||
         (items.length === 1 && (items[0].type || items[0].sf));
+        
+    // This determines if there's enough information to generate a scope of work.
+    const canGenerate = items.some(item => item.type && item.sf);
 
     useEffect(() => {
         if (initialData) {
@@ -370,20 +373,21 @@ function PriceCalculator({
                 </div>
                 <button onClick={handleAddItem} className="btn btn-secondary btn-outline w-full mt-4">+ Add Item</button>
 
-                {/* Smart Button - Only shows if not loading data from analyzers */}
                 {!initialData?.scopeOfWork && (
                     <>
-                        <button
-                            onClick={handleGenerateScopeOfWork}
-                            disabled={isGenerating}
-                            className="btn btn-secondary btn-outline w-full mt-4"
-                        >
-                            {isGenerating ? (
-                                <span className="loading loading-spinner"></span>
-                            ) : (
-                                'Generate Scope of Work'
-                            )}
-                        </button>
+                        <div className="tooltip w-full mt-4" data-tip={!canGenerate && !isGenerating ? "Please add an item with type and square feet." : ""}>
+                            <button
+                                onClick={handleGenerateScopeOfWork}
+                                disabled={isGenerating || !canGenerate}
+                                className="btn btn-secondary btn-outline w-full"
+                            >
+                                {isGenerating ? (
+                                    <span className="loading loading-spinner"></span>
+                                ) : (
+                                    'Generate Scope of Work'
+                                )}
+                            </button>
+                        </div>
                         {generationError && <p className="text-error text-center mt-2">{generationError}</p>}
                     </>
                 )}
@@ -400,6 +404,9 @@ function PriceCalculator({
         </div>
     );
 }
+
+
+
 
 
 // Records Page Component
