@@ -978,6 +978,7 @@ export default function App() {
         handlePageChange('calculator', dataForCalculator);
     };
 
+
     const handleAnalyze = async () => {
         if (!blueprintFile || !user) {
             setAnalysisError('Please select a file first.');
@@ -1097,6 +1098,7 @@ export default function App() {
             return;
         }
 
+        abortController.current = new AbortController();
         setIsAnalyzingVoice(true);
         setVoiceAnalysisError('');
         setVoiceAnalysisResult(null);
