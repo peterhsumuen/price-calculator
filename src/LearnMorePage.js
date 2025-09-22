@@ -21,7 +21,7 @@ function LearnMorePage({ onBack }) {
             <h2 className="text-2xl font-bold mb-2">Price Calculator</h2>
             <p className="text-gray-300">
               <DecryptedText 
-                text={`Dynamically estimate project costs with customizable line items. Input square footage for various job types like "Full Gut" or "Kitchen Remodel" to get instant, accurate pricing.`} 
+                text={`Leverage our intelligent pricing engine to generate real-time cost models. By inputting project parameters, our system applies data-driven algorithms to produce precise, instant estimations.`} 
                 animateOn="view" 
                 sequential 
                 speed={15} 
@@ -41,7 +41,7 @@ function LearnMorePage({ onBack }) {
             <h2 className="text-2xl font-bold mb-2">Blueprint Analyzer</h2>
             <p className="text-gray-300">
               <DecryptedText 
-                text={`Upload blueprint files (PNG, JPG, or PDF) and let our AI extract key details like project name, address, and area sizes to auto-fill the calculator.`}
+                text={`Utilize our Computer Vision model to transform unstructured blueprint data into structured insights. The LLM performs semantic data extraction to identify project details and measurements.`}
                 animateOn="view" 
                 sequential 
                 speed={25} 
@@ -61,7 +61,7 @@ function LearnMorePage({ onBack }) {
             <h2 className="text-2xl font-bold mb-2">Voice Analyzer</h2>
             <p className="text-gray-300">
               <DecryptedText 
-                text={`Record your voice directly in the app. Our AI will transcribe and analyze the audio to populate project details in the price calculator, streamlining your workflow.`}
+                text={`Harness conversational AI with our voice analyzer. It employs advanced Speech-to-Text and NLP for intent recognition and entity extraction, converting your voice into structured data.`}
                 animateOn="view" 
                 sequential 
                 speed={25} 
