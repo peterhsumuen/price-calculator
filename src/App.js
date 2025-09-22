@@ -537,12 +537,9 @@ function BlueprintAnalyzerPage({
     blueprintFile, analysisResult, isAnalyzing, error, progressMessage, progressPercent,
     handleFileChange, handleAnalyze, handleStopAnalysis, handleUseInCalculator
 }) {
-    // Create a ref to access the hidden file input element
     const fileInputRef = useRef(null);
 
-    // This function will be called when the custom button is clicked
     const handleCustomInputClick = () => {
-        // Programmatically click the hidden file input
         fileInputRef.current.click();
     };
 
@@ -623,14 +620,21 @@ function BlueprintAnalyzerPage({
 
 
 // Voice Analyzer Page Component
-function VoiceAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplete }) {
+function VoiceAnalyzerPage({
+    user,
+    onLogout,
+    onPageChange,
+    isAnalyzing,
+    error,
+    transcript,
+    analysisResult,
+    handleAnalyze,
+    handleUseInCalculator,
+    handleStopAnalysis,
+}) {
     const [isRecording, setIsRecording] = useState(false);
     const mediaRecorder = useRef(null);
     const [audioChunks, setAudioChunks] = useState([]);
-    const [analysisResult, setAnalysisResult] = useState(null);
-    const [transcript, setTranscript] = useState(null);
-    const [error, setError] = useState('');
-    const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [audioSampleRate, setAudioSampleRate] = useState(null);
 
     const [micStatus, setMicStatus] = useState('idle');
@@ -642,19 +646,16 @@ function VoiceAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplete })
     const resetState = () => {
         setAudioChunks([]);
         setAudioPreviewUrl(null);
-        setAnalysisResult(null);
-        setTranscript(null);
-        setError('');
     };
 
     const drawMicVisualizer = () => {
         if (!analyserRef.current) return;
-        
+
         const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
         analyserRef.current.getByteFrequencyData(dataArray);
-        
+
         const average = dataArray.reduce((acc, val) => acc + val, 0) / dataArray.length;
-        
+
         if (average > 5) {
             setMicStatus('listening');
         } else {
@@ -666,15 +667,15 @@ function VoiceAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplete })
 
     const startRecording = async () => {
         resetState();
-    
+
         try {
             const mime = (window.MediaRecorder?.isTypeSupported?.('audio/webm;codecs=opus'))
                 ? 'audio/webm;codecs=opus'
                 : (window.MediaRecorder?.isTypeSupported?.('audio/ogg;codecs=opus') ? 'audio/ogg;codecs=opus' : null);
 
-            if (!mime) { 
-                setError('This browser cannot record WebM/OGG Opus. Please use Chrome/Edge.'); 
-                return; 
+            if (!mime) {
+                handleAnalyze(null, null, 'This browser cannot record WebM/OGG Opus. Please use Chrome/Edge.');
+                return;
             }
 
             const stream = await navigator.mediaDevices.getUserMedia({
@@ -687,7 +688,7 @@ function VoiceAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplete })
             analyserRef.current.fftSize = 256;
             analyserRef.current.smoothingTimeConstant = 0.6;
             source.connect(analyserRef.current);
-            
+
             const audioTrack = stream.getAudioTracks()[0];
             const sampleRate = audioTrack.getSettings().sampleRate;
             setAudioSampleRate(sampleRate);
@@ -711,7 +712,7 @@ function VoiceAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplete })
             animationFrameRef.current = requestAnimationFrame(drawMicVisualizer);
 
         } catch (err) {
-            setError('Could not start recording. Please ensure you have given microphone permissions.');
+            handleAnalyze(null, null, 'Could not start recording. Please ensure you have given microphone permissions.');
         }
     };
 
@@ -739,68 +740,13 @@ function VoiceAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplete })
         }
     });
 
-    const handleAnalyze = async () => {
+    const onAnalyze = async () => {
         if (isRecording) await stopRecording();
         if (audioChunks.length === 0 || audioChunks[0].size < 500) {
-            setError('No usable audio recorded. Please speak for a few seconds and try again.');
+            handleAnalyze(null, null, 'No usable audio recorded. Please speak for a few seconds and try again.');
             return;
         }
-
-        setIsAnalyzing(true);
-        setError('');
-
-        const audioBlob = audioChunks[0];
-        const reader = new FileReader();
-        reader.readAsDataURL(audioBlob);
-        reader.onloadend = async () => {
-            const base64Audio = reader.result;
-            if (!base64Audio) {
-                setError('Failed to read the audio data. Please try recording again.');
-                setIsAnalyzing(false);
-                return;
-            }
-
-            const functionUrl = 'https://analyze-voice-recording-w47bikyqya-uc.a.run.app';
-            
-            try {
-                const response = await fetch(functionUrl, {
-                    method: 'POST',
-                    mode: 'cors',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ audioData: base64Audio,
-                        sampleRate: audioSampleRate
-                     }),
-                });
-
-                const result = await response.json();
-                if (!response.ok) {
-                    throw new Error(result.error || 'Analysis failed due to a server error.');
-                }
-                
-                setAnalysisResult(result.analysis);
-                setTranscript(result.transcript);
-
-            } catch (err) {
-                setError(`Analysis failed: ${err.message}`);
-            } finally {
-                setIsAnalyzing(false);
-            }
-        };
-    };
-
-    const handleUseInCalculator = () => {
-        if (!analysisResult) return;
-        const remodelingItems = analysisResult["Remodeling place and size"] || {};
-        const filteredItems = Object.fromEntries(Object.entries(remodelingItems).filter(([, value]) => value !== null));
-        const dataForCalculator = {
-            projectName: analysisResult["Project Name"] || '',
-            address: analysisResult["Project Address"] || '',
-            clientName: analysisResult["Client Name"] || '',
-            scopeOfWork: analysisResult["Scope of Work"] || '',
-            items: filteredItems,
-            analysisResult: analysisResult
-        };
-        onPageChange('calculator', dataForCalculator);
+        handleAnalyze(audioChunks, audioSampleRate);
     };
 
     return (
@@ -822,7 +768,7 @@ function VoiceAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplete })
                     <button onClick={isRecording ? stopRecording : startRecording} className={`btn ${isRecording ? 'btn-error' : 'btn-primary'} btn-outline grow`}>
                         {isRecording ? 'Stop Recording' : 'Start Recording'}
                     </button>
-                    <button onClick={handleAnalyze} disabled={isAnalyzing || isRecording || !audioPreviewUrl} className="btn btn-secondary btn-outline grow">
+                    <button onClick={onAnalyze} disabled={isAnalyzing || isRecording || !audioPreviewUrl} className="btn btn-secondary btn-outline grow">
                         {isAnalyzing && <span className="loading loading-spinner"></span>}
                         {isAnalyzing ? 'Analyzing...' : 'Analyze Recording'}
                     </button>
@@ -839,13 +785,20 @@ function VoiceAnalyzerPage({ user, onLogout, onPageChange, onAnalysisComplete })
                     <div className="mt-6 flex flex-col items-center gap-4">
                         <h3 className="text-lg font-bold">Recording Preview:</h3>
                         <audio src={audioPreviewUrl} controls className="w-full"></audio>
-                        <button onClick={resetState} className="btn btn-ghost btn-sm">Discard and record again</button>
+                        <button onClick={resetState} className="btn btn-error">Discard and record again</button>
+                    </div>
+                )}
+                
+                {isAnalyzing && (
+                    <div className="mt-4 space-y-2">
+                        <button onClick={handleStopAnalysis} className="btn btn-error btn-outline w-full">
+                            Stop Analysis
+                        </button>
                     </div>
                 )}
 
                 {error && <div className="alert alert-error mt-4 rounded-box">{error}</div>}
                 
-                {/* MODIFIED: Use the new display component */}
                 {transcript && (
                      <div className="mt-6">
                         <CollapsibleSection title="Transcript" rawText={transcript}>
@@ -953,6 +906,12 @@ export default function App() {
     const [uploadedBlueprintUrl, setUploadedBlueprintUrl] = useState(null);
     const abortController = useRef(null);
 
+    // --- State and logic for Voice Analyzer ---
+    const [voiceAnalysisResult, setVoiceAnalysisResult] = useState(null);
+    const [isAnalyzingVoice, setIsAnalyzingVoice] = useState(false);
+    const [voiceAnalysisError, setVoiceAnalysisError] = useState('');
+    const [transcript, setTranscript] = useState(null);
+
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
             setUser(currentUser);
@@ -1004,6 +963,20 @@ export default function App() {
         handlePageChange('calculator', data);
     };
 
+    const handleUseInCalculatorFromVoiceAnalysis = () => {
+        if (!voiceAnalysisResult) return;
+        const remodelingItems = voiceAnalysisResult["Remodeling place and size"] || {};
+        const filteredItems = Object.fromEntries(Object.entries(remodelingItems).filter(([, value]) => value !== null));
+        const dataForCalculator = {
+            projectName: voiceAnalysisResult["Project Name"] || '',
+            address: voiceAnalysisResult["Project Address"] || '',
+            clientName: voiceAnalysisResult["Client Name"] || '',
+            scopeOfWork: voiceAnalysisResult["Scope of Work"] || '',
+            items: filteredItems,
+            analysisResult: voiceAnalysisResult
+        };
+        handlePageChange('calculator', dataForCalculator);
+    };
 
     const handleAnalyze = async () => {
         if (!blueprintFile || !user) {
@@ -1118,6 +1091,62 @@ export default function App() {
         }
     };
 
+    const handleAnalyzeVoice = async (audioChunks, audioSampleRate, error) => {
+        if (error) {
+            setVoiceAnalysisError(error);
+            return;
+        }
+
+        setIsAnalyzingVoice(true);
+        setVoiceAnalysisError('');
+        setVoiceAnalysisResult(null);
+        setTranscript(null);
+
+        const audioBlob = audioChunks[0];
+        const reader = new FileReader();
+        reader.readAsDataURL(audioBlob);
+        reader.onloadend = async () => {
+            const base64Audio = reader.result;
+            if (!base64Audio) {
+                setVoiceAnalysisError('Failed to read the audio data. Please try recording again.');
+                setIsAnalyzingVoice(false);
+                return;
+            }
+
+            const functionUrl = 'https://analyze-voice-recording-w47bikyqya-uc.a.run.app';
+
+            try {
+                const response = await fetch(functionUrl, {
+                    method: 'POST',
+                    mode: 'cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        audioData: base64Audio,
+                        sampleRate: audioSampleRate
+                    }),
+                    signal: abortController.current.signal,
+                });
+
+                const result = await response.json();
+                if (!response.ok) {
+                    throw new Error(result.error || 'Analysis failed due to a server error.');
+                }
+
+                setVoiceAnalysisResult(result.analysis);
+                setTranscript(result.transcript);
+
+            } catch (err) {
+                if (err.name === 'AbortError') {
+                    setVoiceAnalysisError('Analysis stopped by user interaction.');
+                } else {
+                    setVoiceAnalysisError(`Analysis failed: ${err.message}`);
+                }
+            } finally {
+                setIsAnalyzingVoice(false);
+            }
+        };
+    };
+
     const handleFileChange = (e) => {
         const file = e.target.files[0];
         if (file && (file.type === 'image/png' || file.type === 'image/jpeg' || file.type === 'application/pdf')) {
@@ -1189,7 +1218,18 @@ export default function App() {
                     handleUseInCalculator={handleUseInCalculatorFromAnalysis}
                 />;
             case 'voiceAnalyzer':
-                return <VoiceAnalyzerPage user={user} onLogout={handleLogout} onPageChange={handlePageChange} />;
+                return <VoiceAnalyzerPage
+                    user={user}
+                    onLogout={handleLogout}
+                    onPageChange={handlePageChange}
+                    isAnalyzing={isAnalyzingVoice}
+                    error={voiceAnalysisError}
+                    transcript={transcript}
+                    analysisResult={voiceAnalysisResult}
+                    handleAnalyze={handleAnalyzeVoice}
+                    handleUseInCalculator={handleUseInCalculatorFromVoiceAnalysis}
+                    handleStopAnalysis={handleStopAnalysis}
+                />;
             default:
                 return <PriceCalculator
                     user={user}
