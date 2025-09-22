@@ -173,7 +173,6 @@ function PriceCalculator({
     const [isGenerating, setIsGenerating] = useState(false);
     const [generationError, setGenerationError] = useState('');
 
-    // Condition to check if there is any data in the form
     const isFormDirty =
         projectName ||
         address ||
@@ -181,7 +180,6 @@ function PriceCalculator({
         scopeOfWorkText ||
         items.length > 1 ||
         (items.length === 1 && (items[0].type || items[0].sf));
-
 
     useEffect(() => {
         if (initialData) {
@@ -214,7 +212,7 @@ function PriceCalculator({
         const fullGutSF = parseFloat(items.find(item => item.type === 'Full gut')?.sf) || 0;
         items.forEach(item => {
             const parsedSF = parseFloat(item.sf) || 0;
-            if (parsedSF === 0 && item.type !== 'Landscape') return; // Allow landscape to be 0
+            if (parsedSF === 0 && item.type !== 'Landscape') return;
             const itemType = item.type;
             let priceForItem = 0;
             const isSpecialCase = ['Structural Wall removal', '2nd Structural Wall removal', 'Living room', 'Bedroom'].includes(itemType);
@@ -229,7 +227,16 @@ function PriceCalculator({
         setTotalPrice(total);
     }, [items]);
 
-    const handleChange = (id, field, value) => setItems(items.map(item => item.id === id ? { ...item, [field]: value } : item));
+    const handleChange = (id, field, value) => {
+        if (field === 'sf') {
+            // Allow empty string to clear the input, otherwise ensure it's a non-negative number
+            if (value === '' || parseFloat(value) >= 0) {
+                setItems(items.map(item => item.id === id ? { ...item, [field]: value } : item));
+            }
+        } else {
+            setItems(items.map(item => item.id === id ? { ...item, [field]: value } : item));
+        }
+    };
     const handleAddItem = () => setItems([...items, { id: uuidv4(), type: '', sf: '' }]);
     const handleRemoveItem = (id) => setItems(items.filter(item => item.id !== id));
     const handleGenerateScopeOfWork = async () => {
@@ -285,7 +292,11 @@ function PriceCalculator({
                 await addDoc(collection(db, `projects`), { ...projectData, userId: user.uid, userName: user.email, createdAt: serverTimestamp() });
                 setSaveStatus("Project saved successfully!");
             }
-            setTimeout(() => { setSaveStatus(''); onPageChange('records'); }, 2000);
+            setTimeout(() => {
+                setSaveStatus('');
+                onClear();
+                onPageChange('records');
+            }, 2000);
         } catch (e) {
             setSaveStatus("Error saving project: " + e.message);
         }
@@ -345,7 +356,15 @@ function PriceCalculator({
                             <option value="" disabled>Select item type</option>
                             {options.map(option => (<option key={option.value} value={option.value}>{option.label}</option>))}
                         </select>
-                        <input type="number" placeholder="Square Feet" value={item.sf} onChange={(e) => handleChange(item.id, 'sf', e.target.value)} className="input input-bordered grow rounded-box" />
+                        <input
+                            type="number"
+                            min="0"
+                            placeholder="Square Feet"
+                            value={item.sf}
+                            onChange={(e) => handleChange(item.id, 'sf', e.target.value)}
+                            onWheel={(e) => e.target.blur()}
+                            className="input input-bordered grow rounded-box"
+                        />
                         {items.length > 1 && (<button onClick={() => handleRemoveItem(item.id)} className="btn btn-error btn-outline">Remove</button>)}
                     </div>))}
                 </div>
@@ -381,6 +400,7 @@ function PriceCalculator({
         </div>
     );
 }
+
 
 // Records Page Component
 function RecordsPage({ user, onLogout, onPageChange }) {
