@@ -1015,7 +1015,7 @@ export default function App() {
         const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
         try {
-            const wasChunked = blueprintFile.type === 'application/pdf' && blueprintFile.size > MAX_FILE_SIZE;
+            const wasChunked = blueprintFile.type === 'application/pdf';
             let finalAnalysis;
             let firstPageUrl;
 
