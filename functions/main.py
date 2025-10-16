@@ -168,7 +168,7 @@ def analyze_blueprint(req: https_fn.Request) -> https_fn.Response:
 
                     **1. Pre-Construction & Project Management**
                         -   Permitting & Inspections: Detail the plan to prepare and submit plans, pull all necessary city permits (Building, Electrical, Plumbing, Mechanical), and coordinate all required city inspections from foundation to final.
-                        -   Site Logistics: Describe on-site management, and the setup of temporary facilities like construction fencing, portable restrooms, and regular debris disposal schedules.
+                        -   Site Logistics: Describe on-site management, and the setup of temporary facilities like construction fencing, portable restrooms, and regular debris disposal schedules. Crucially, detail the implementation and maintenance of the site's Erosion Control plan and Stormwater Pollution Prevention Plan (SWPPP) as required by local authorities. Specify the installation of measures like silt fences, gravel bags at inlets, and a designated concrete washout area to prevent site runoff and ensure compliance.
 
                     **2. Demolition & Site Preparation**
                         -   Be Specific: Clearly list all items to be removed, including load-bearing vs. non-load-bearing walls, specific windows/doors, flooring, fixtures, cabinetry, and old MEP (Mechanical, Electrical, Plumbing) systems like furnaces or old wiring.
@@ -183,7 +183,7 @@ def analyze_blueprint(req: https_fn.Request) -> https_fn.Response:
                         -   Windows & Exterior Doors: Specify the installation, type, and dimensions of all new windows and doors (e.g., "5'-0" x 6'-8" dual-glaze vinyl sliding door").
 
                     **5. Major Systems & Insulation (MEP)**
-                        -   Plumbing (P): Detail the full scope, including rough-in with new copper hot/cold supply lines and ABS drains, installation of a new tankless water heater, gas lines, and final installation of all client-provided fixtures (sinks, toilets, faucets, tub, shower valves). Mention insulation of hot/cold water pipes.
+                        -   Plumbing (P): Detail the full scope, including rough-in with new copper hot/cold supply lines and ABS drains, installation of a new tankless water heater, gas lines, and final installation of all client-provided fixtures (sinks, toilets, faucets, tub, shower valves). Mention insulation of hot/cold water pipes. For the gas system, detail the installation of all new gas lines to appliances (e.g., furnace, water heater, cooktop). Describe the process for system pressure testing, coordinating the official inspection, and securing the final "Gas On" milestone with the utility provider.
                         -   Electrical (E): Describe the main service panel upgrade (e.g., "to 200 Amps"), a full rewire of remodeled areas, dedicated circuits (e.g., "240V/50A for future electric range"), and installation of all new lighting (recessed, under-cabinet LEDs), outlets, switches (including dimmers/vacancy sensors), and safety devices.
                         -   Mechanical / HVAC (M): Detail the removal of old systems and installation of new, high-efficiency systems like a heat pump with ceiling-mounted cassettes. Specify venting for new kitchen range hoods and bathroom exhaust fans to the exterior.
                         -   Insulation: Specify the installation of new insulation, referencing R-values for walls, ceilings, and floors from energy calculation pages (e.g., "R-21 in walls, R-30 in ceilings").
@@ -352,39 +352,39 @@ def synthesize_scope_of_work(req: https_fn.Request) -> https_fn.Response:
         **Original Instruction Template:**
             **Structure the SOW by Phase:**
 
-            **1. Pre-Construction & Project Management**
-                -   Permitting & Inspections: Detail the plan to prepare and submit plans, pull all necessary city permits (Building, Electrical, Plumbing, Mechanical), and coordinate all required city inspections from foundation to final.
-                -   Site Logistics: Describe on-site management, and the setup of temporary facilities like construction fencing, portable restrooms, and regular debris disposal schedules.
+                    **1. Pre-Construction & Project Management**
+                                -   Permitting & Inspections: Detail the plan to prepare and submit plans, pull all necessary city permits (Building, Electrical, Plumbing, Mechanical), and coordinate all required city inspections from foundation to final.
+                                -   Site Logistics: Describe on-site management, and the setup of temporary facilities like construction fencing, portable restrooms, and regular debris disposal schedules. Crucially, detail the implementation and maintenance of the site's Erosion Control plan and Stormwater Pollution Prevention Plan (SWPPP) as required by local authorities. Specify the installation of measures like silt fences, gravel bags at inlets, and a designated concrete washout area to prevent site runoff and ensure compliance.
 
-            **2. Demolition & Site Preparation**
-                -   Be Specific: Clearly list all items to be removed, including load-bearing vs. non-load-bearing walls, specific windows/doors, flooring, fixtures, cabinetry, and old MEP (Mechanical, Electrical, Plumbing) systems like furnaces or old wiring.
-                -   Debris Management: Mention the plan for hauling and legal disposal of all construction debris.
+                    **2. Demolition & Site Preparation**
+                        -   Be Specific: Clearly list all items to be removed, including load-bearing vs. non-load-bearing walls, specific windows/doors, flooring, fixtures, cabinetry, and old MEP (Mechanical, Electrical, Plumbing) systems like furnaces or old wiring.
+                        -   Debris Management: Mention the plan for hauling and legal disposal of all construction debris.
 
-            **3. Foundation & Structural Framing**
-                -   Foundation: Describe all new foundation work, specifying footings, piers, rebar installation, and concrete pouring, referencing structural detail pages (e.g., "as per detail 1/A1").
-                -   Construction & Framing: Detail the installation of new structural elements like flush beams or cased openings. Describe framing for all new walls, reconfigured closets, and ceiling structures. Explicitly mention specialty framing for items like pocket doors or shower niches.
+                    **3. Foundation & Structural Framing**
+                        -   Foundation: Describe all new foundation work, specifying footings, piers, rebar installation, and concrete pouring, referencing structural detail pages (e.g., "as per detail 1/A1").
+                        -   Construction & Framing: Detail the installation of new structural elements like flush beams or cased openings. Describe framing for all new walls, reconfigured closets, and ceiling structures. Explicitly mention specialty framing for items like pocket doors or shower niches.
 
-            **4. Exterior Work & Finishes**
-                -   Roofing: If applicable, describe work on roof decking, installation of radiant barriers, waterproofing, and new roofing materials.
-                -   Windows & Exterior Doors: Specify the installation, type, and dimensions of all new windows and doors (e.g., "5'-0" x 6'-8" dual-glaze vinyl sliding door").
+                    **4. Exterior Work & Finishes**
+                        -   Roofing: If applicable, describe work on roof decking, installation of radiant barriers, waterproofing, and new roofing materials.
+                        -   Windows & Exterior Doors: Specify the installation, type, and dimensions of all new windows and doors (e.g., "5'-0" x 6'-8" dual-glaze vinyl sliding door").
 
-            **5. Major Systems & Insulation (MEP)**
-                -   Plumbing (P): Detail the full scope, including rough-in with new copper hot/cold supply lines and ABS drains, installation of a new tankless water heater, gas lines, and final installation of all client-provided fixtures (sinks, toilets, faucets, tub, shower valves). Mention insulation of hot/cold water pipes.
-                -   Electrical (E): Describe the main service panel upgrade (e.g., "to 200 Amps"), a full rewire of remodeled areas, dedicated circuits (e.g., "240V/50A for future electric range"), and installation of all new lighting (recessed, under-cabinet LEDs), outlets, switches (including dimmers/vacancy sensors), and safety devices.
-                -   Mechanical / HVAC (M): Detail the removal of old systems and installation of new, high-efficiency systems like a heat pump with ceiling-mounted cassettes. Specify venting for new kitchen range hoods and bathroom exhaust fans to the exterior.
-                -   Insulation: Specify the installation of new insulation, referencing R-values for walls, ceilings, and floors from energy calculation pages (e.g., "R-21 in walls, R-30 in ceilings").
+                    **5. Major Systems & Insulation (MEP)**
+                        -   Plumbing (P): Detail the full scope, including rough-in with new copper hot/cold supply lines and ABS drains, installation of a new tankless water heater, gas lines, and final installation of all client-provided fixtures (sinks, toilets, faucets, tub, shower valves). Mention insulation of hot/cold water pipes. For the gas system, detail the installation of all new gas lines to appliances (e.g., furnace, water heater, cooktop). Describe the process for system pressure testing, coordinating the official inspection, and securing the final "Gas On" milestone with the utility provider.
+                        -   Electrical (E): Describe the main service panel upgrade (e.g., "to 200 Amps"), a full rewire of remodeled areas, dedicated circuits (e.g., "240V/50A for future electric range"), and installation of all new lighting (recessed, under-cabinet LEDs), outlets, switches (including dimmers/vacancy sensors), and safety devices.
+                        -   Mechanical / HVAC (M): Detail the removal of old systems and installation of new, high-efficiency systems like a heat pump with ceiling-mounted cassettes. Specify venting for new kitchen range hoods and bathroom exhaust fans to the exterior.
+                        -   Insulation: Specify the installation of new insulation, referencing R-values for walls, ceilings, and floors from energy calculation pages (e.g., "R-21 in walls, R-30 in ceilings").
 
-            **6. Interior Finishes**
-                -   Drywall: Describe installation and finish level (e.g., "smooth (Level 5) finish, ready for paint").
-                -   Painting: Detail the full process: one coat of primer and two finish coats of paint on all interior walls, ceilings, doors, and trim.
-                -   Flooring & Baseboards: Specify the installation of new flooring and baseboards throughout all remodeled areas.
-                -   Kitchen: Detail the installation of new cabinets in the specified layout (e.g., U-shaped), fabrication/installation of countertops (including features like breakfast bars), and installation of tile backsplash.
-                -   Bathrooms: Detail the installation of vanities, countertops, sinks, tile on floors, and tile for shower walls/pans or tub surrounds.
-                -   Doors & Hardware: Specify the installation of all new solid-core interior doors (including sliding/pocket doors), casings, and all associated hardware (handles, hinges, locks).
+                    **6. Interior Finishes**
+                        -   Drywall: Describe installation and finish level (e.g., "smooth (Level 5) finish, ready for paint").
+                        -   Painting: Detail the full process: one coat of primer and two finish coats of paint on all interior walls, ceilings, doors, and trim.
+                        -   Flooring & Baseboards: Specify the installation of new flooring and baseboards throughout all remodeled areas.
+                        -   Kitchen: Detail the installation of new cabinets in the specified layout (e.g., U-shaped), fabrication/installation of countertops (including features like breakfast bars), and installation of tile backsplash.
+                        -   Bathrooms: Detail the installation of vanities, countertops, sinks, tile on floors, and tile for shower walls/pans or tub surrounds.
+                        -   Doors & Hardware: Specify the installation of all new solid-core interior doors (including sliding/pocket doors), casings, and all associated hardware (handles, hinges, locks).
 
-            **7. Final Touches & Project Completion**
-                -   Appliance & Accessory Installation: **Explicitly list** the installation of all owner-provided appliances (kitchen and laundry) AND **bathroom accessories** (e.g., mirrors, towel bars, toilet paper holders).
-                -   Final Cleanup: State that the site will be left in a "broom-swept" or "move-in ready" condition.
+                    **7. Final Touches & Project Completion**
+                        -   Appliance & Accessory Installation: **Explicitly list** the installation of all owner-provided appliances (kitchen and laundry) AND **bathroom accessories** (e.g., mirrors, towel bars, toilet paper holders).
+                        -   Final Cleanup: State that the site will be left in a "broom-swept" or "move-in ready" condition.
 
 
         ---
@@ -588,39 +588,39 @@ def analyze_voice_recording(req: https_fn.Request) -> https_fn.Response:
 
             **Structure the SOW by Phase:**
 
-            **1. Pre-Construction & Project Management**
-                -   Permitting & Inspections: Detail the plan to prepare and submit plans, pull all necessary city permits (Building, Electrical, Plumbing, Mechanical), and coordinate all required city inspections from foundation to final.
-                -   Site Logistics: Describe on-site management, and the setup of temporary facilities like construction fencing, portable restrooms, and regular debris disposal schedules.
+                    **1. Pre-Construction & Project Management**
+                                -   Permitting & Inspections: Detail the plan to prepare and submit plans, pull all necessary city permits (Building, Electrical, Plumbing, Mechanical), and coordinate all required city inspections from foundation to final.
+                                -   Site Logistics: Describe on-site management, and the setup of temporary facilities like construction fencing, portable restrooms, and regular debris disposal schedules. Crucially, detail the implementation and maintenance of the site's Erosion Control plan and Stormwater Pollution Prevention Plan (SWPPP) as required by local authorities. Specify the installation of measures like silt fences, gravel bags at inlets, and a designated concrete washout area to prevent site runoff and ensure compliance.
 
-            **2. Demolition & Site Preparation**
-                -   Be Specific: Clearly list all items to be removed, including load-bearing vs. non-load-bearing walls, specific windows/doors, flooring, fixtures, cabinetry, and old MEP (Mechanical, Electrical, Plumbing) systems like furnaces or old wiring.
-                -   Debris Management: Mention the plan for hauling and legal disposal of all construction debris.
+                    **2. Demolition & Site Preparation**
+                        -   Be Specific: Clearly list all items to be removed, including load-bearing vs. non-load-bearing walls, specific windows/doors, flooring, fixtures, cabinetry, and old MEP (Mechanical, Electrical, Plumbing) systems like furnaces or old wiring.
+                        -   Debris Management: Mention the plan for hauling and legal disposal of all construction debris.
 
-            **3. Foundation & Structural Framing**
-                -   Foundation: Describe all new foundation work, specifying footings, piers, rebar installation, and concrete pouring, referencing structural detail pages (e.g., "as per detail 1/A1").
-                -   Construction & Framing: Detail the installation of new structural elements like flush beams or cased openings. Describe framing for all new walls, reconfigured closets, and ceiling structures. Explicitly mention specialty framing for items like pocket doors or shower niches.
+                    **3. Foundation & Structural Framing**
+                        -   Foundation: Describe all new foundation work, specifying footings, piers, rebar installation, and concrete pouring, referencing structural detail pages (e.g., "as per detail 1/A1").
+                        -   Construction & Framing: Detail the installation of new structural elements like flush beams or cased openings. Describe framing for all new walls, reconfigured closets, and ceiling structures. Explicitly mention specialty framing for items like pocket doors or shower niches.
 
-            **4. Exterior Work & Finishes**
-                -   Roofing: If applicable, describe work on roof decking, installation of radiant barriers, waterproofing, and new roofing materials.
-                -   Windows & Exterior Doors: Specify the installation, type, and dimensions of all new windows and doors (e.g., "5'-0" x 6'-8" dual-glaze vinyl sliding door").
+                    **4. Exterior Work & Finishes**
+                        -   Roofing: If applicable, describe work on roof decking, installation of radiant barriers, waterproofing, and new roofing materials.
+                        -   Windows & Exterior Doors: Specify the installation, type, and dimensions of all new windows and doors (e.g., "5'-0" x 6'-8" dual-glaze vinyl sliding door").
 
-            **5. Major Systems & Insulation (MEP)**
-                -   Plumbing (P): Detail the full scope, including rough-in with new copper hot/cold supply lines and ABS drains, installation of a new tankless water heater, gas lines, and final installation of all client-provided fixtures (sinks, toilets, faucets, tub, shower valves). Mention insulation of hot/cold water pipes.
-                -   Electrical (E): Describe the main service panel upgrade (e.g., "to 200 Amps"), a full rewire of remodeled areas, dedicated circuits (e.g., "240V/50A for future electric range"), and installation of all new lighting (recessed, under-cabinet LEDs), outlets, switches (including dimmers/vacancy sensors), and safety devices.
-                -   Mechanical / HVAC (M): Detail the removal of old systems and installation of new, high-efficiency systems like a heat pump with ceiling-mounted cassettes. Specify venting for new kitchen range hoods and bathroom exhaust fans to the exterior.
-                -   Insulation: Specify the installation of new insulation, referencing R-values for walls, ceilings, and floors from energy calculation pages (e.g., "R-21 in walls, R-30 in ceilings").
+                    **5. Major Systems & Insulation (MEP)**
+                        -   Plumbing (P): Detail the full scope, including rough-in with new copper hot/cold supply lines and ABS drains, installation of a new tankless water heater, gas lines, and final installation of all client-provided fixtures (sinks, toilets, faucets, tub, shower valves). Mention insulation of hot/cold water pipes. For the gas system, detail the installation of all new gas lines to appliances (e.g., furnace, water heater, cooktop). Describe the process for system pressure testing, coordinating the official inspection, and securing the final "Gas On" milestone with the utility provider.
+                        -   Electrical (E): Describe the main service panel upgrade (e.g., "to 200 Amps"), a full rewire of remodeled areas, dedicated circuits (e.g., "240V/50A for future electric range"), and installation of all new lighting (recessed, under-cabinet LEDs), outlets, switches (including dimmers/vacancy sensors), and safety devices.
+                        -   Mechanical / HVAC (M): Detail the removal of old systems and installation of new, high-efficiency systems like a heat pump with ceiling-mounted cassettes. Specify venting for new kitchen range hoods and bathroom exhaust fans to the exterior.
+                        -   Insulation: Specify the installation of new insulation, referencing R-values for walls, ceilings, and floors from energy calculation pages (e.g., "R-21 in walls, R-30 in ceilings").
 
-            **6. Interior Finishes**
-                -   Drywall: Describe installation and finish level (e.g., "smooth (Level 5) finish, ready for paint").
-                -   Painting: Detail the full process: one coat of primer and two finish coats of paint on all interior walls, ceilings, doors, and trim.
-                -   Flooring & Baseboards: Specify the installation of new flooring and baseboards throughout all remodeled areas.
-                -   Kitchen: Detail the installation of new cabinets in the specified layout (e.g., U-shaped), fabrication/installation of countertops (including features like breakfast bars), and installation of tile backsplash.
-                -   Bathrooms: Detail the installation of vanities, countertops, sinks, tile on floors, and tile for shower walls/pans or tub surrounds.
-                -   Doors & Hardware: Specify the installation of all new solid-core interior doors (including sliding/pocket doors), casings, and all associated hardware (handles, hinges, locks).
+                    **6. Interior Finishes**
+                        -   Drywall: Describe installation and finish level (e.g., "smooth (Level 5) finish, ready for paint").
+                        -   Painting: Detail the full process: one coat of primer and two finish coats of paint on all interior walls, ceilings, doors, and trim.
+                        -   Flooring & Baseboards: Specify the installation of new flooring and baseboards throughout all remodeled areas.
+                        -   Kitchen: Detail the installation of new cabinets in the specified layout (e.g., U-shaped), fabrication/installation of countertops (including features like breakfast bars), and installation of tile backsplash.
+                        -   Bathrooms: Detail the installation of vanities, countertops, sinks, tile on floors, and tile for shower walls/pans or tub surrounds.
+                        -   Doors & Hardware: Specify the installation of all new solid-core interior doors (including sliding/pocket doors), casings, and all associated hardware (handles, hinges, locks).
 
-            **7. Final Touches & Project Completion**
-                -   Appliance & Accessory Installation: **Explicitly list** the installation of all owner-provided appliances (kitchen and laundry) AND **bathroom accessories** (e.g., mirrors, towel bars, toilet paper holders).
-                -   Final Cleanup: State that the site will be left in a "broom-swept" or "move-in ready" condition.
+                    **7. Final Touches & Project Completion**
+                        -   Appliance & Accessory Installation: **Explicitly list** the installation of all owner-provided appliances (kitchen and laundry) AND **bathroom accessories** (e.g., mirrors, towel bars, toilet paper holders).
+                        -   Final Cleanup: State that the site will be left in a "broom-swept" or "move-in ready" condition.
                 
         2.  **Nested "Remodeling place and size" Object:**
             - `Full gut`: Do not fill in this unless it says Full gut or whole house remodeling on the plan.
@@ -709,39 +709,39 @@ def generate_scope_of_work(req: https_fn.Request) -> https_fn.Response:
         
         * `Scope of Work`: **Act as a project manager writing a formal Scope of Work for a homeowner. Using all provided blueprint pages, create a thorough, step-by-step detail description of the entire project. Structure the output by area or room. For each location, use clear headings (e.g., Kitchen Remodel, Second Floor Addition, Exterior Work) and detail the following in plain language:
 
-            **1. Pre-Construction & Project Management**
-                -   Permitting & Inspections: Detail the plan to prepare and submit plans, pull all necessary city permits (Building, Electrical, Plumbing, Mechanical), and coordinate all required city inspections from foundation to final.
-                -   Site Logistics: Describe on-site management, and the setup of temporary facilities like construction fencing, portable restrooms, and regular debris disposal schedules.
+                    **1. Pre-Construction & Project Management**
+                                -   Permitting & Inspections: Detail the plan to prepare and submit plans, pull all necessary city permits (Building, Electrical, Plumbing, Mechanical), and coordinate all required city inspections from foundation to final.
+                                -   Site Logistics: Describe on-site management, and the setup of temporary facilities like construction fencing, portable restrooms, and regular debris disposal schedules. Crucially, detail the implementation and maintenance of the site's Erosion Control plan and Stormwater Pollution Prevention Plan (SWPPP) as required by local authorities. Specify the installation of measures like silt fences, gravel bags at inlets, and a designated concrete washout area to prevent site runoff and ensure compliance.
 
-            **2. Demolition & Site Preparation**
-                -   Be Specific: Clearly list all items to be removed, including load-bearing vs. non-load-bearing walls, specific windows/doors, flooring, fixtures, cabinetry, and old MEP (Mechanical, Electrical, Plumbing) systems like furnaces or old wiring.
-                -   Debris Management: Mention the plan for hauling and legal disposal of all construction debris.
+                    **2. Demolition & Site Preparation**
+                        -   Be Specific: Clearly list all items to be removed, including load-bearing vs. non-load-bearing walls, specific windows/doors, flooring, fixtures, cabinetry, and old MEP (Mechanical, Electrical, Plumbing) systems like furnaces or old wiring.
+                        -   Debris Management: Mention the plan for hauling and legal disposal of all construction debris.
 
-            **3. Foundation & Structural Framing**
-                -   Foundation: Describe all new foundation work, specifying footings, piers, rebar installation, and concrete pouring, referencing structural detail pages (e.g., "as per detail 1/A1").
-                -   Construction & Framing: Detail the installation of new structural elements like flush beams or cased openings. Describe framing for all new walls, reconfigured closets, and ceiling structures. Explicitly mention specialty framing for items like pocket doors or shower niches.
+                    **3. Foundation & Structural Framing**
+                        -   Foundation: Describe all new foundation work, specifying footings, piers, rebar installation, and concrete pouring, referencing structural detail pages (e.g., "as per detail 1/A1").
+                        -   Construction & Framing: Detail the installation of new structural elements like flush beams or cased openings. Describe framing for all new walls, reconfigured closets, and ceiling structures. Explicitly mention specialty framing for items like pocket doors or shower niches.
 
-            **4. Exterior Work & Finishes**
-                -   Roofing: If applicable, describe work on roof decking, installation of radiant barriers, waterproofing, and new roofing materials.
-                -   Windows & Exterior Doors: Specify the installation, type, and dimensions of all new windows and doors (e.g., "5'-0" x 6'-8" dual-glaze vinyl sliding door").
+                    **4. Exterior Work & Finishes**
+                        -   Roofing: If applicable, describe work on roof decking, installation of radiant barriers, waterproofing, and new roofing materials.
+                        -   Windows & Exterior Doors: Specify the installation, type, and dimensions of all new windows and doors (e.g., "5'-0" x 6'-8" dual-glaze vinyl sliding door").
 
-            **5. Major Systems & Insulation (MEP)**
-                -   Plumbing (P): Detail the full scope, including rough-in with new copper hot/cold supply lines and ABS drains, installation of a new tankless water heater, gas lines, and final installation of all client-provided fixtures (sinks, toilets, faucets, tub, shower valves). Mention insulation of hot/cold water pipes.
-                -   Electrical (E): Describe the main service panel upgrade (e.g., "to 200 Amps"), a full rewire of remodeled areas, dedicated circuits (e.g., "240V/50A for future electric range"), and installation of all new lighting (recessed, under-cabinet LEDs), outlets, switches (including dimmers/vacancy sensors), and safety devices.
-                -   Mechanical / HVAC (M): Detail the removal of old systems and installation of new, high-efficiency systems like a heat pump with ceiling-mounted cassettes. Specify venting for new kitchen range hoods and bathroom exhaust fans to the exterior.
-                -   Insulation: Specify the installation of new insulation, referencing R-values for walls, ceilings, and floors from energy calculation pages (e.g., "R-21 in walls, R-30 in ceilings").
+                    **5. Major Systems & Insulation (MEP)**
+                        -   Plumbing (P): Detail the full scope, including rough-in with new copper hot/cold supply lines and ABS drains, installation of a new tankless water heater, gas lines, and final installation of all client-provided fixtures (sinks, toilets, faucets, tub, shower valves). Mention insulation of hot/cold water pipes. For the gas system, detail the installation of all new gas lines to appliances (e.g., furnace, water heater, cooktop). Describe the process for system pressure testing, coordinating the official inspection, and securing the final "Gas On" milestone with the utility provider.
+                        -   Electrical (E): Describe the main service panel upgrade (e.g., "to 200 Amps"), a full rewire of remodeled areas, dedicated circuits (e.g., "240V/50A for future electric range"), and installation of all new lighting (recessed, under-cabinet LEDs), outlets, switches (including dimmers/vacancy sensors), and safety devices.
+                        -   Mechanical / HVAC (M): Detail the removal of old systems and installation of new, high-efficiency systems like a heat pump with ceiling-mounted cassettes. Specify venting for new kitchen range hoods and bathroom exhaust fans to the exterior.
+                        -   Insulation: Specify the installation of new insulation, referencing R-values for walls, ceilings, and floors from energy calculation pages (e.g., "R-21 in walls, R-30 in ceilings").
 
-            **6. Interior Finishes**
-                -   Drywall: Describe installation and finish level (e.g., "smooth (Level 5) finish, ready for paint").
-                -   Painting: Detail the full process: one coat of primer and two finish coats of paint on all interior walls, ceilings, doors, and trim.
-                -   Flooring & Baseboards: Specify the installation of new flooring and baseboards throughout all remodeled areas.
-                -   Kitchen: Detail the installation of new cabinets in the specified layout (e.g., U-shaped), fabrication/installation of countertops (including features like breakfast bars), and installation of tile backsplash.
-                -   Bathrooms: Detail the installation of vanities, countertops, sinks, tile on floors, and tile for shower walls/pans or tub surrounds.
-                -   Doors & Hardware: Specify the installation of all new solid-core interior doors (including sliding/pocket doors), casings, and all associated hardware (handles, hinges, locks).
+                    **6. Interior Finishes**
+                        -   Drywall: Describe installation and finish level (e.g., "smooth (Level 5) finish, ready for paint").
+                        -   Painting: Detail the full process: one coat of primer and two finish coats of paint on all interior walls, ceilings, doors, and trim.
+                        -   Flooring & Baseboards: Specify the installation of new flooring and baseboards throughout all remodeled areas.
+                        -   Kitchen: Detail the installation of new cabinets in the specified layout (e.g., U-shaped), fabrication/installation of countertops (including features like breakfast bars), and installation of tile backsplash.
+                        -   Bathrooms: Detail the installation of vanities, countertops, sinks, tile on floors, and tile for shower walls/pans or tub surrounds.
+                        -   Doors & Hardware: Specify the installation of all new solid-core interior doors (including sliding/pocket doors), casings, and all associated hardware (handles, hinges, locks).
 
-            **7. Final Touches & Project Completion**
-                -   Appliance & Accessory Installation: **Explicitly list** the installation of all owner-provided appliances (kitchen and laundry) AND **bathroom accessories** (e.g., mirrors, towel bars, toilet paper holders).
-                -   Final Cleanup: State that the site will be left in a "broom-swept" or "move-in ready" condition.
+                    **7. Final Touches & Project Completion**
+                        -   Appliance & Accessory Installation: **Explicitly list** the installation of all owner-provided appliances (kitchen and laundry) AND **bathroom accessories** (e.g., mirrors, towel bars, toilet paper holders).
+                        -   Final Cleanup: State that the site will be left in a "broom-swept" or "move-in ready" condition.
                 
                 - Ensure the final text is a comprehensive narrative that walks the homeowner through the entire construction journey from start to finish.**
 
