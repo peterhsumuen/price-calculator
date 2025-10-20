@@ -176,11 +176,14 @@ def analyze_blueprint(req: https_fn.Request) -> https_fn.Response:
 
                     **3. Foundation & Structural Framing**
                         -   Foundation: Describe all new foundation work, specifying footings, piers, rebar installation, and concrete pouring, referencing structural detail pages (e.g., "as per detail 1/A1").
+                        - Structural Basis of Bid (Allowance): Critically, add a clause stating: "As final structural engineering plans are not yet available, this proposal is based on the following specific allowances. Requirements exceeding these allowances will be addressed via change order:
+                            - Concrete: Includes standard 12-inch wide by 18-inch deep concrete footings with (2) #4 rebar continuous top and (2) #4 rebar continuous bottom.
+                            - Framing: Includes an allowance for up to 16 linear feet of new shear wall and up to two (2) strong walls."
                         -   Construction & Framing: Detail the installation of new structural elements like flush beams or cased openings. Describe framing for all new walls, reconfigured closets, and ceiling structures. Explicitly mention specialty framing for items like pocket doors or shower niches.
 
                     **4. Exterior Work & Finishes**
                         -   Roofing: If applicable, describe work on roof decking, installation of radiant barriers, waterproofing, and new roofing materials.
-                        -   Windows & Exterior Doors: Specify the installation, type, and dimensions of all new windows and doors (e.g., "5'-0" x 6'-8" dual-glaze vinyl sliding door").
+                        -   Windows & Exterior Doors: Specify the installation, type, and dimensions of all new windows and doors (e.g., "5'-0" x 6'-8" dual-glaze vinyl sliding door"). Explicitly state: "Bid includes all new windows to be tempered glass as per plan specifications but will be extra cost."
 
                     **5. Major Systems & Insulation (MEP)**
                         -   Plumbing (P): Detail the full scope, including rough-in with new copper hot/cold supply lines and ABS drains, installation of a new tankless water heater, gas lines, and final installation of all client-provided fixtures (sinks, toilets, faucets, tub, shower valves). Mention insulation of hot/cold water pipes. For the gas system, detail the installation of all new gas lines to appliances (e.g., furnace, water heater, cooktop). Describe the process for system pressure testing, coordinating the official inspection, and securing the final "Gas On" milestone with the utility provider.
@@ -362,11 +365,14 @@ def synthesize_scope_of_work(req: https_fn.Request) -> https_fn.Response:
 
                     **3. Foundation & Structural Framing**
                         -   Foundation: Describe all new foundation work, specifying footings, piers, rebar installation, and concrete pouring, referencing structural detail pages (e.g., "as per detail 1/A1").
+                        - Structural Basis of Bid (Allowance): Critically, add a clause stating: "As final structural engineering plans are not yet available, this proposal is based on the following specific allowances. Requirements exceeding these allowances will be addressed via change order:
+                            - Concrete: Includes standard 12-inch wide by 18-inch deep concrete footings with (2) #4 rebar continuous top and (2) #4 rebar continuous bottom.
+                            - Framing: Includes an allowance for up to 16 linear feet of new shear wall and up to two (2) strong walls."
                         -   Construction & Framing: Detail the installation of new structural elements like flush beams or cased openings. Describe framing for all new walls, reconfigured closets, and ceiling structures. Explicitly mention specialty framing for items like pocket doors or shower niches.
 
                     **4. Exterior Work & Finishes**
                         -   Roofing: If applicable, describe work on roof decking, installation of radiant barriers, waterproofing, and new roofing materials.
-                        -   Windows & Exterior Doors: Specify the installation, type, and dimensions of all new windows and doors (e.g., "5'-0" x 6'-8" dual-glaze vinyl sliding door").
+                        -   Windows & Exterior Doors: Specify the installation, type, and dimensions of all new windows and doors (e.g., "5'-0" x 6'-8" dual-glaze vinyl sliding door"). Explicitly state: "Bid includes all new windows to be tempered glass as per plan specifications but will be extra cost."
 
                     **5. Major Systems & Insulation (MEP)**
                         -   Plumbing (P): Detail the full scope, including rough-in with new copper hot/cold supply lines and ABS drains, installation of a new tankless water heater, gas lines, and final installation of all client-provided fixtures (sinks, toilets, faucets, tub, shower valves). Mention insulation of hot/cold water pipes. For the gas system, detail the installation of all new gas lines to appliances (e.g., furnace, water heater, cooktop). Describe the process for system pressure testing, coordinating the official inspection, and securing the final "Gas On" milestone with the utility provider.
@@ -598,11 +604,14 @@ def analyze_voice_recording(req: https_fn.Request) -> https_fn.Response:
 
                     **3. Foundation & Structural Framing**
                         -   Foundation: Describe all new foundation work, specifying footings, piers, rebar installation, and concrete pouring, referencing structural detail pages (e.g., "as per detail 1/A1").
+                        - Structural Basis of Bid (Allowance): Critically, add a clause stating: "As final structural engineering plans are not yet available, this proposal is based on the following specific allowances. Requirements exceeding these allowances will be addressed via change order:
+                            - Concrete: Includes standard 12-inch wide by 18-inch deep concrete footings with (2) #4 rebar continuous top and (2) #4 rebar continuous bottom.
+                            - Framing: Includes an allowance for up to 16 linear feet of new shear wall and up to two (2) strong walls."
                         -   Construction & Framing: Detail the installation of new structural elements like flush beams or cased openings. Describe framing for all new walls, reconfigured closets, and ceiling structures. Explicitly mention specialty framing for items like pocket doors or shower niches.
 
                     **4. Exterior Work & Finishes**
                         -   Roofing: If applicable, describe work on roof decking, installation of radiant barriers, waterproofing, and new roofing materials.
-                        -   Windows & Exterior Doors: Specify the installation, type, and dimensions of all new windows and doors (e.g., "5'-0" x 6'-8" dual-glaze vinyl sliding door").
+                        -   Windows & Exterior Doors: Specify the installation, type, and dimensions of all new windows and doors (e.g., "5'-0" x 6'-8" dual-glaze vinyl sliding door"). Explicitly state: "Bid includes all new windows to be tempered glass as per plan specifications but will be extra cost."
 
                     **5. Major Systems & Insulation (MEP)**
                         -   Plumbing (P): Detail the full scope, including rough-in with new copper hot/cold supply lines and ABS drains, installation of a new tankless water heater, gas lines, and final installation of all client-provided fixtures (sinks, toilets, faucets, tub, shower valves). Mention insulation of hot/cold water pipes. For the gas system, detail the installation of all new gas lines to appliances (e.g., furnace, water heater, cooktop). Describe the process for system pressure testing, coordinating the official inspection, and securing the final "Gas On" milestone with the utility provider.
@@ -719,11 +728,14 @@ def generate_scope_of_work(req: https_fn.Request) -> https_fn.Response:
 
                     **3. Foundation & Structural Framing**
                         -   Foundation: Describe all new foundation work, specifying footings, piers, rebar installation, and concrete pouring, referencing structural detail pages (e.g., "as per detail 1/A1").
+                        - Structural Basis of Bid (Allowance): Critically, add a clause stating: "As final structural engineering plans are not yet available, this proposal is based on the following specific allowances. Requirements exceeding these allowances will be addressed via change order:
+                            - Concrete: Includes standard 12-inch wide by 18-inch deep concrete footings with (2) #4 rebar continuous top and (2) #4 rebar continuous bottom.
+                            - Framing: Includes an allowance for up to 16 linear feet of new shear wall and up to two (2) strong walls."
                         -   Construction & Framing: Detail the installation of new structural elements like flush beams or cased openings. Describe framing for all new walls, reconfigured closets, and ceiling structures. Explicitly mention specialty framing for items like pocket doors or shower niches.
 
                     **4. Exterior Work & Finishes**
                         -   Roofing: If applicable, describe work on roof decking, installation of radiant barriers, waterproofing, and new roofing materials.
-                        -   Windows & Exterior Doors: Specify the installation, type, and dimensions of all new windows and doors (e.g., "5'-0" x 6'-8" dual-glaze vinyl sliding door").
+                        -   Windows & Exterior Doors: Specify the installation, type, and dimensions of all new windows and doors (e.g., "5'-0" x 6'-8" dual-glaze vinyl sliding door"). Explicitly state: "Bid includes all new windows to be tempered glass as per plan specifications but will be extra cost."
 
                     **5. Major Systems & Insulation (MEP)**
                         -   Plumbing (P): Detail the full scope, including rough-in with new copper hot/cold supply lines and ABS drains, installation of a new tankless water heater, gas lines, and final installation of all client-provided fixtures (sinks, toilets, faucets, tub, shower valves). Mention insulation of hot/cold water pipes. For the gas system, detail the installation of all new gas lines to appliances (e.g., furnace, water heater, cooktop). Describe the process for system pressure testing, coordinating the official inspection, and securing the final "Gas On" milestone with the utility provider.
