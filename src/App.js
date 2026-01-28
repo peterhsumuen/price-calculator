@@ -9,6 +9,7 @@ import './App.css';
 import WelcomePage from './WelcomePage';
 import LearnMorePage from './LearnMorePage';
 import FormattedScopeOfWork from './FormattedScopeOfWork';
+import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 import {
     getAuth,
@@ -996,88 +997,58 @@ export default function App() {
 
 
     const handleAnalyze = async () => {
-        if (!blueprintFile || !user) {
-            setAnalysisError('Please select a file first.');
-            return;
-        }
+    if (!blueprintFile || !user) {
+        setAnalysisError('Please select a file first.');
+        return;
+    }
 
-        abortController.current = new AbortController();
-        setIsAnalyzing(true);
-        setAnalysisError('');
-        setProgressMessage('Preparing for analysis...');
-        setAnalysisResult(null);
-        setUploadedBlueprintUrl(null);
-        setProgressPercent(0);
+    abortController.current = new AbortController();
+    setIsAnalyzing(true);
+    setAnalysisError('');
+    setProgressMessage('Preparing for analysis...');
+    setAnalysisResult(null);
+    setUploadedBlueprintUrl(null);
+    setProgressPercent(0);
 
-        const analyzeUrl = 'https://analyze-blueprint-w47bikyqya-uc.a.run.app';
-        const synthesizeUrl = 'https://synthesize-scope-of-work-w47bikyqya-uc.a.run.app';
-        const CHUNK_SIZE = 5;
-        const MAX_FILE_SIZE = 10 * 1024 * 1024;
+    const storage = getStorage();
+    const analyzeUrl = 'https://analyze-blueprint-w47bikyqya-uc.a.run.app';
+    const synthesizeUrl = 'https://synthesize-scope-of-work-w47bikyqya-uc.a.run.app';
+    const CHUNK_SIZE = 5;
 
-        try {
-            const wasChunked = blueprintFile.type === 'application/pdf';
-            let finalAnalysis;
-            let firstPageUrl;
+    try {
+        const wasChunked = blueprintFile.type === 'application/pdf';
+        let finalAnalysis;
+        let firstPageUrl;
 
-            if (wasChunked) {
-                const arrayBuffer = await blueprintFile.arrayBuffer();
-                const pdfDoc = await PDFDocument.load(arrayBuffer);
-                const totalPages = pdfDoc.getPageCount();
-                let allAnalysisResults = [];
+        if (wasChunked) {
+            const arrayBuffer = await blueprintFile.arrayBuffer();
+            const pdfDoc = await PDFDocument.load(arrayBuffer);
+            const totalPages = pdfDoc.getPageCount();
+            let allAnalysisResults = [];
 
-                for (let i = 0; i < totalPages; i += CHUNK_SIZE) {
-                    const chunkEnd = Math.min(i + CHUNK_SIZE, totalPages);
-                    setProgressMessage(`Analyzing pages ${i + 1}-${chunkEnd} of ${totalPages}...`);
-                    setProgressPercent(Math.round((chunkEnd / totalPages) * 100));
+            for (let i = 0; i < totalPages; i += CHUNK_SIZE) {
+                const chunkEnd = Math.min(i + CHUNK_SIZE, totalPages);
+                setProgressMessage(`Processing pages ${i + 1}-${chunkEnd} of ${totalPages}...`);
+                setProgressPercent(Math.round((chunkEnd / totalPages) * 100));
 
-                    const subPdf = await PDFDocument.create();
-                    const copiedPages = await subPdf.copyPages(pdfDoc, Array.from({ length: chunkEnd - i }, (_, k) => i + k));
-                    copiedPages.forEach(page => subPdf.addPage(page));
+                // 1. Create a sub-PDF for this chunk
+                const subPdf = await PDFDocument.create();
+                const copiedPages = await subPdf.copyPages(pdfDoc, Array.from({ length: chunkEnd - i }, (_, k) => i + k));
+                copiedPages.forEach(page => subPdf.addPage(page));
+                const chunkBytes = await subPdf.save();
+                const chunkBlob = new Blob([chunkBytes], { type: 'application/pdf' });
 
-                    const chunkBytes = await subPdf.save();
-                    const chunkBlob = new Blob([chunkBytes], { type: 'application/pdf' });
+                // 2. Upload chunk to Firebase Storage instead of using Base64
+                const storagePath = `temp_chunks/${user.uid}/${Date.now()}_chunk_${i}.pdf`;
+                const storageRef = ref(storage, storagePath);
+                await uploadBytes(storageRef, chunkBlob);
 
-                    const fileData = await new Promise((resolve, reject) => {
-                        const reader = new FileReader();
-                        reader.readAsDataURL(chunkBlob);
-                        reader.onload = () => resolve(reader.result);
-                        reader.onerror = (error) => reject(error);
-                    });
+                // 3. Send the STORAGE PATH to the backend
+                const payload = { 
+                    filePath: storagePath, // Backend will use this to download
+                    userId: user.uid 
+                };
 
-                    const payload = { fileData, userId: user.uid };
-                    const response = await fetch(analyzeUrl, {
-                        method: 'POST',
-                        mode: 'cors',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload),
-                        signal: abortController.current.signal
-                    });
-                    const parsed = await response.json();
-
-                    if (!response.ok) throw new Error(parsed.error || `Chunk ${i / CHUNK_SIZE + 1} failed.`);
-
-                    allAnalysisResults.push(parsed.analysisResult);
-                    if (i === 0) firstPageUrl = parsed.blueprintUrl;
-                }
-
-                finalAnalysis = _mergeAnalysisResults(allAnalysisResults);
-
-                if (finalAnalysis['Scope of Work']) {
-                    setProgressMessage('Finalizing scope of work...');
-                    const synthResponse = await fetch(synthesizeUrl, {
-                        method: 'POST', mode: 'cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: finalAnalysis['Scope of Work'] })
-                    });
-                    const synthResult = await synthResponse.json();
-                    if (!synthResponse.ok) throw new Error(synthResult.error || 'Failed to synthesize scope of work.');
-                    finalAnalysis['Scope of Work'] = synthResult.synthesizedScope;
-                }
-            } else {
-                setProgressMessage('Analyzing...');
-                setProgressPercent(97);
-                const fileData = await new Promise((resolve, reject) => {
-                    const reader = new FileReader(); reader.readAsDataURL(blueprintFile); reader.onload = () => resolve(reader.result); reader.onerror = (error) => reject(error);
-                });
-                const payload = { fileData, userId: user.uid };
                 const response = await fetch(analyzeUrl, {
                     method: 'POST',
                     mode: 'cors',
@@ -1085,28 +1056,64 @@ export default function App() {
                     body: JSON.stringify(payload),
                     signal: abortController.current.signal
                 });
+
                 const parsed = await response.json();
-                if (!response.ok) throw new Error(parsed.error || 'The server returned an error.');
-                finalAnalysis = parsed.analysisResult || {};
-                firstPageUrl = parsed.blueprintUrl || null;
+                if (!response.ok) throw new Error(parsed.error || `Chunk processing failed.`);
+
+                allAnalysisResults.push(parsed.analysisResult);
+                if (i === 0) firstPageUrl = parsed.blueprintUrl;
             }
 
-            setAnalysisResult(finalAnalysis);
-            setUploadedBlueprintUrl(firstPageUrl);
-            setProgressMessage('');
+            finalAnalysis = _mergeAnalysisResults(allAnalysisResults);
 
-        } catch (err) {
-            if (err.name === 'AbortError') {
-                setAnalysisError('Analysis stopped by user interaction.');
-            } else {
-                setAnalysisError(err.message);
+            if (finalAnalysis['Scope of Work']) {
+                setProgressMessage('Finalizing scope of work...');
+                const synthResponse = await fetch(synthesizeUrl, {
+                    method: 'POST', mode: 'cors', headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ text: finalAnalysis['Scope of Work'] })
+                });
+                const synthResult = await synthResponse.json();
+                if (!synthResponse.ok) throw new Error(synthResult.error || 'Failed to synthesize.');
+                finalAnalysis['Scope of Work'] = synthResult.synthesizedScope;
             }
-            setProgressMessage('');
-            setProgressPercent(0);
-        } finally {
-            setIsAnalyzing(false);
+        } else {
+            // Handle Images via the same Storage logic
+            setProgressMessage('Uploading image...');
+            const storagePath = `temp_chunks/${user.uid}/${Date.now()}_${blueprintFile.name}`;
+            const storageRef = ref(storage, storagePath);
+            await uploadBytes(storageRef, blueprintFile);
+
+            const payload = { filePath: storagePath, userId: user.uid };
+            const response = await fetch(analyzeUrl, {
+                method: 'POST',
+                mode: 'cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+                signal: abortController.current.signal
+            });
+
+            const parsed = await response.json();
+            if (!response.ok) throw new Error(parsed.error || 'Server error.');
+            finalAnalysis = parsed.analysisResult || {};
+            firstPageUrl = parsed.blueprintUrl || null;
         }
-    };
+
+        setAnalysisResult(finalAnalysis);
+        setUploadedBlueprintUrl(firstPageUrl);
+        setProgressMessage('');
+
+    } catch (err) {
+        if (err.name === 'AbortError') {
+            setAnalysisError('Analysis stopped by user.');
+        } else {
+            setAnalysisError(err.message);
+        }
+        setProgressMessage('');
+        setProgressPercent(0);
+    } finally {
+        setIsAnalyzing(false);
+    }
+};
 
     const handleAnalyzeVoice = async (audioChunks, audioSampleRate, error) => {
         if (error) {

@@ -143,104 +143,203 @@ def analyze_blueprint(req: https_fn.Request) -> https_fn.Response:
     try:
         _initialize_clients()
 
-        
         CHUNK_SIZE = 5 
         TEXT_THRESHOLD = 1500
         
         prompt = """
+
         Your primary goal is to act as an expert construction project manager and estimator. Analyze all provided blueprint pages to generate a comprehensive, detailed, and client-friendly "Scope of Work". After generating the SOW, fill in any other details you can find. Your task is to extract, analyze, and format all information into a precise JSON structure.
+
+
 
         Follow these instructions carefully for each key:
 
+
+
         1.  **Top-Level Keys:**
+
             * `Project Name`: **Find the project's title, often the first line of the project description.**
+
             * `Project Description`: **Provide a concise summary of the project's main objectives (e.g., complete interior remodel, kitchen and bath renovation, creating a new bathroom, etc.).**
+
             * `Project Address`: **Find the physical address of the job site.**
+
             * `Client Name`: **Find the name of the property owner or client.**
+
             * `Scope of Work`: **This is the most critical section. Write a formal, narrative-style Scope of Work for a homeowner. Use all blueprint pages (Architectural, Structural, MEP, etc.) to create a thorough, step-by-step description. Cross-reference all pages to ensure consistency and capture all details.**
 
+
+
                 **Expert Analysis & Detail Inference:**
+
                 * **Go Beyond the Obvious:** Do not just list what you see. Infer standard construction practices. For example, if you see a new shower, include the installation of a waterproof membrane, a custom shower pan, and tile backer board. If there's a new kitchen, mention under-cabinet lighting.
+
                 * **Identify High-Quality Features:** Look for notes that imply a higher standard of work, such as "Level 5 smooth finish", "solid-core doors", "dimmer switches", or specific material types like "copper supply lines".
+
                 * **Consider Future Needs & Codes:** As seen in the best examples, include forward-thinking details like installing "2x8 blocking in walls for future grab bar installation" in bathrooms, which is a best practice. Mention code requirements like "tamper-resistant outlets" or "GFCI protection" where applicable.
+
+
 
                     **Structure the SOW by Phase:**
 
+
+
                     **1. Pre-Construction & Project Management**
+
                         -   Permitting & Inspections: Detail the plan to prepare and submit plans, pull all necessary city permits (Building, Electrical, Plumbing, Mechanical), and coordinate all required city inspections from foundation to final.
+
                         -   Site Logistics: Describe on-site management, and the setup of temporary facilities like construction fencing, portable restrooms, and regular debris disposal schedules. Crucially, detail the implementation and maintenance of the site's Erosion Control plan and Stormwater Pollution Prevention Plan (SWPPP) as required by local authorities. Specify the installation of measures like silt fences, gravel bags at inlets, and a designated concrete washout area to prevent site runoff and ensure compliance.
 
+
+
                     **2. Demolition & Site Preparation**
+
                         -   Be Specific: Clearly list all items to be removed, including load-bearing vs. non-load-bearing walls, specific windows/doors, flooring, fixtures, cabinetry, and old MEP (Mechanical, Electrical, Plumbing) systems like furnaces or old wiring.
+
                         -   Debris Management: Mention the plan for hauling and legal disposal of all construction debris.
 
+
+
                     **3. Foundation & Structural Framing**
+
                         -   Foundation: Describe all new foundation work, specifying footings, piers, rebar installation, and concrete pouring, referencing structural detail pages (e.g., "as per detail 1/A1").
+
                         - Structural Basis of Bid (Allowance): Critically, add a clause stating: "As final structural engineering plans are not yet available, this proposal is based on the following specific allowances. Requirements exceeding these allowances will be addressed via change order:
+
                             - Concrete: Includes standard 12-inch wide by 18-inch deep concrete footings with (2) #4 rebar continuous top and (2) #4 rebar continuous bottom.
+
                             - Framing: Includes an allowance for up to 16 linear feet of new shear wall and up to two (2) strong walls."
+
                         -   Construction & Framing: Detail the installation of new structural elements like flush beams or cased openings. Describe framing for all new walls, reconfigured closets, and ceiling structures. Explicitly mention specialty framing for items like pocket doors or shower niches.
 
+
+
                     **4. Exterior Work & Finishes**
+
                         -   Roofing: If applicable, describe work on roof decking, installation of radiant barriers, waterproofing, and new roofing materials.
+
                         -   Windows & Exterior Doors: Specify the installation, type, and dimensions of all new windows and doors (e.g., "5'-0" x 6'-8" dual-glaze vinyl sliding door"). Explicitly state: "Bid includes all new windows to be tempered glass as per plan specifications but will be extra cost."
 
+
+
                     **5. Major Systems & Insulation (MEP)**
+
                         -   Plumbing (P): Detail the full scope, including rough-in with new copper hot/cold supply lines and ABS drains, installation of a new tankless water heater, gas lines, and final installation of all client-provided fixtures (sinks, toilets, faucets, tub, shower valves). Mention insulation of hot/cold water pipes. For the gas system, detail the installation of all new gas lines to appliances (e.g., furnace, water heater, cooktop). Describe the process for system pressure testing, coordinating the official inspection, and securing the final "Gas On" milestone with the utility provider.
+
                         -   Electrical (E): Describe the main service panel upgrade (e.g., "to 200 Amps"), a full rewire of remodeled areas, dedicated circuits (e.g., "240V/50A for future electric range"), and installation of all new lighting (recessed, under-cabinet LEDs), outlets, switches (including dimmers/vacancy sensors), and safety devices.
+
                         -   Mechanical / HVAC (M): Detail the removal of old systems and installation of new, high-efficiency systems like a heat pump with ceiling-mounted cassettes. Specify venting for new kitchen range hoods and bathroom exhaust fans to the exterior.
+
                         -   Insulation: Specify the installation of new insulation, referencing R-values for walls, ceilings, and floors from energy calculation pages (e.g., "R-21 in walls, R-30 in ceilings").
 
+
+
                     **6. Interior Finishes**
+
                         -   Drywall: Describe installation and finish level (e.g., "smooth (Level 5) finish, ready for paint").
+
                         -   Painting: Detail the full process: one coat of primer and two finish coats of paint on all interior walls, ceilings, doors, and trim.
+
                         -   Flooring & Baseboards: Specify the installation of new flooring and baseboards throughout all remodeled areas.
+
                         -   Kitchen: Detail the installation of new cabinets in the specified layout (e.g., U-shaped), fabrication/installation of countertops (including features like breakfast bars), and installation of tile backsplash.
+
                         -   Bathrooms: Detail the installation of vanities, countertops, sinks, tile on floors, and tile for shower walls/pans or tub surrounds.
+
                         -   Doors & Hardware: Specify the installation of all new solid-core interior doors (including sliding/pocket doors), casings, and all associated hardware (handles, hinges, locks).
 
+
+
                     **7. Final Touches & Project Completion**
+
                         -   Appliance & Accessory Installation: **Explicitly list** the installation of all owner-provided appliances (kitchen and laundry) AND **bathroom accessories** (e.g., mirrors, towel bars, toilet paper holders).
+
                         -   Final Cleanup: State that the site will be left in a "broom-swept" or "move-in ready" condition.
 
+
+
                 
+
         2.  **Nested "Remodeling place and size" Object:**
+
             - `Full gut`: Do not fill in this unless it says Full gut or whole house remodeling on the plan.
+
             - `Additional building/ new construction`: Look for areas marked "ADDITION" or "NEW". Calculate their total square footage.
+
             - `Structural Wall removal`: Look for notes indicating wall demolition. If found, use the same value as `Full gut`.
+
             - `Kitchen`: Find the area labeled "KITCHEN" and use its size.
+
             - `Bathroom`: Find the area labeled "BATH" and use its size.
+
             - `Living room`: Find the area labeled "LIVING ROOM" or "LIVING/DINING" and use its size.
+
             - `Garage`: Find the area labeled "GARAGE" and use its size.
+
             - `Bedroom`: Find any area labeled "BEDROOM" and use its size. 
+
             - `Landscape`: Look for landscaping plans.
+
             ** If there are multiple rooms of the same type, add their sizes together. **
+
             - `Zone District`: **Find the zoning code for the property. Look for labels like "ZONE DISTRICT", "ZONING", or "PARCEL ZONING".**
+
             - `Type of Construction`: **Find the construction classification. Look for labels like "TYPE OF CONSTRUCTION" or "CONSTRUCTION TYPE".**
+
             - `Occupancy Group`: **Find the occupancy classification code. Look for labels like "OCCUPANCY GROUP", "OCCUPANCY", or "GROUP".**
+
+
 
         Your final output must formatted as a string with markdown headings and bullet points, while the rest of the data remains in a JSON structure.
 
+
+
         ```json
+
         {
+
           "Project Name": "REMODEL EXISTING 1-STORY HOUSE",
+
           "Project Description": "REMODEL EXISTING 1-STORY HOUSE\n- REMODEL 1244.5 SQ.FT. OF LIVING AREA",
+
           "Project Address": "1975 ALMA STREET, PALO ALTO",
+
           "Client Name": "TIFFANY TSAO",
+
           "Scope of Work": "This project involves the remodel of the 1,244.5 sq. ft. living area...",
+
           "Remodeling place and size": { "Living room": 1244.5 },
+
           "Zone District": "RM-20",
+
           "Type of Construction": "V-B, NO SPRINKLER",
+
           "Occupancy Group": "R-3 / U"
+
         }
+
         ```
+
         """
 
         data = req.get_json(silent=True) or {}
-        if "fileData" not in data or "userId" not in data:
-            return https_fn.Response("Missing fields", status=400, headers=_cors_headers_for(origin))
+        
+        # We now look for 'filePath' which points to the file in Firebase Storage
+        if "filePath" not in data or "userId" not in data:
+            return https_fn.Response("Missing fields: filePath and userId are required", status=400, headers=_cors_headers_for(origin))
 
-        raw_bytes, mime_type = _decode_data_uri(data["fileData"])
+        # 1. Download the file from Firebase Storage
+        try:
+            bucket_name = _get_bucket_name()
+            bucket = storage_client.bucket(bucket_name)
+            blob = bucket.blob(data["filePath"])
+            
+            # Download the file content into memory
+            raw_bytes = blob.download_as_bytes()
+            mime_type = blob.content_type or "application/pdf"
+        except Exception as storage_err:
+            print(f"Error downloading from storage: {storage_err}")
+            return https_fn.Response(json.dumps({"error": "Failed to retrieve file from storage"}), status=500, headers=_cors_headers_for(origin))
 
         all_analysis_results = []
         first_page_bytes = None
@@ -291,15 +390,22 @@ def analyze_blueprint(req: https_fn.Request) -> https_fn.Response:
         
         final_analysis = _merge_analysis_results(all_analysis_results)
 
+        # Upload the thumbnail/first page to a permanent location
         bucket_name = _get_bucket_name()
         bucket = storage_client.bucket(bucket_name)
         fname = f"blueprints/{data['userId']}/{uuid.uuid4()}.png"
-        blob = bucket.blob(fname)
-        blob.upload_from_string(first_page_bytes, content_type="image/png")
+        blob_thumb = bucket.blob(fname)
+        blob_thumb.upload_from_string(first_page_bytes, content_type="image/png")
+
+        # Optional: Clean up the temporary uploaded PDF chunk to save space
+        try:
+            blob.delete()
+        except:
+            pass
 
         response_data = {
             "analysisResult": final_analysis,
-            "blueprintUrl": blob.public_url,
+            "blueprintUrl": blob_thumb.public_url,
             "selectedPages": selected_pages_indices,
             "totalPages": page_count
         }
