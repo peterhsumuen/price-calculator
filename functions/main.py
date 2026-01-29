@@ -324,10 +324,9 @@ def analyze_blueprint(req: https_fn.Request) -> https_fn.Response:
 
         data = req.get_json(silent=True) or {}
         
-        # We now look for 'filePath' which points to the file in Firebase Storage
+        # CHANGE: Look for filePath instead of fileData
         if "filePath" not in data or "userId" not in data:
-            error_payload = json.dumps({"error": "Missing fields: filePath and userId are required"})
-            return https_fn.Response(error_payload, status=400, mimetype="application/json", headers=_cors_headers_for(origin))
+             return https_fn.Response(json.dumps({"error": "Missing filePath or userId"}), status=400, mimetype="application/json", headers=_cors_headers_for(origin))
 
         # 1. Download the file from Firebase Storage
         try:
