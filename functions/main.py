@@ -358,13 +358,13 @@ def analyze_blueprint(req: https_fn.Request) -> https_fn.Response:
                         page = doc.load_page(page_num)
                         
                         if first_page_bytes is None:
-                            pix = page.get_pixmap(dpi=300)
+                            pix = page.get_pixmap(dpi=250)
                             first_page_bytes = pix.tobytes("png")
 
                         text = page.get_text("text")
                         if len(text) > TEXT_THRESHOLD or page_num == 0:
                             selected_pages_indices.append(page_num)
-                            pix = page.get_pixmap(dpi=300)
+                            pix = page.get_pixmap(dpi=250)
                             image_bytes = pix.tobytes("png")
                             content_for_gemini.append(Part.from_data(data=image_bytes, mime_type="image/png"))
                     
